@@ -117,13 +117,32 @@ test('氛围事件仍是随机冷却：每轮最多 5 次，池子里没有突�
   assert.equal(s.sounds.filter(k=>k==='face').length,2,'重开之后重新拥有那一次突脸');
   assert.equal(run().length,5,'重开之后氛围计数也清零，可以再来 5 次');
 });
-test('突脸用的是结局图集第一格；减少动态的样式不再把突脸藏起来',()=>{
+test('突脸使用专用独立图片；减少动态仍显示静止帧',()=>{
+  const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'..','effects.css'),'utf8');
-  assert.ok(/\.scare-face\{[^}]*url\('assets\/endings\.webp'\) 0 0 \/ 400% 400%/.test(css),'突脸应当复用图集第一格');
+  assert.match(html,/<img class="scare-face" src="assets\/haunt-face\.webp"/);
   const reduced=css.slice(css.indexOf('@media(prefers-reduced-motion:reduce)'));
   assert.ok(!/\.scare-layer\.face[^{]*\{[^}]*display:none/.test(reduced),'减少动态下不应当把突脸 display:none');
   assert.match(reduced,/\.face \.scare-face\{animation:none/, '减少动态下应当保留静止帧');
   assert.match(css,/\.scare-layer\.cue::after\{content:/, '应当有可预期的文字预告');
+});
+
+test('减少动态的预告被打断时不扣掉主突脸，答题等待会解除',()=>{
+  const s=setup({reduced:true,random:0});
+  s.state.qi=10;s.haunt.schedule(10);
+  assert.equal(s.haunt.fired(),false);
+  let advanced=0;
+  s.haunt.afterTarget(()=>advanced++);
+  s.time.advance(1000);
+  assert.equal(advanced,0);
+  s.context.document.hidden=true;s.haunt.cancel();
+  assert.equal(advanced,1);
+  assert.equal(s.haunt.fired(),false);
+  s.context.document.hidden=false;s.state.qi=11;s.haunt.schedule(11);
+  s.time.advance(1600);
+  assert.match(s.layer.className,/still face/);
+  assert.equal(s.haunt.fired(),true);
+  assert.deepEqual(s.sounds,['face']);
 });
 test('不支持 AudioContext 时降级；默认偏好为开但不会自动播放',()=>{
   const s=environment();s.run('audio.js');const audio=s.context.HTTIAudio;

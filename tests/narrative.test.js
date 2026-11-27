@@ -115,58 +115,31 @@ test('通联逐字打出来，打完停一下再接下一行；最后一条给�
   assert.equal(s.$('#presence').getAttribute('aria-hidden'),'true','面板本身仍然对读屏隐藏，避免刷屏');
 });
 
-test('咧嘴露牙是硬切：0.25 秒裂开、露出上下两排牙，不再描线',()=>{
-  // 旧的弧线画法必须彻底消失
-  assert.ok(!/ghost-smile|ghost-mouth|smileDraw|mouthFade/.test(HTML),'平直嘴角与缓慢描线要删干净');
-  assert.ok(!/stroke-dashoffset/.test(HTML),'不该再有描线残留');
-
-  // 露牙元素：嘴洞 + 上下两排牙 + 牙缝竖线
-  assert.match(HTML,/class="ghost-grin"/,'要有咧嘴露牙的组');
-  assert.match(HTML,/class="ghost-grin-gaps"/,'牙缝要用细竖线分隔');
-  const grin=HTML.slice(HTML.indexOf('class="ghost-grin"'),HTML.indexOf('class="ghost-grin"')+1400);
-  assert.equal((grin.match(/<rect /g)||[]).length,2,'要上下两排牙（两个牙列 rect）');
-  assert.ok(grin.indexOf('193.6')>0&&grin.indexOf('207.4')>0,'上排靠上、下排靠下');
-  assert.equal((grin.match(/L\S+ \S+ /g)||[]).length>=10,true,'牙缝要有多条竖线');
-
-  // 硬切：0.25 秒一次性裂开
-  assert.match(HTML,/body\.finale-smile \.ghost-grin\{animation:grinSnap \.25s/,'露牙要在 0.25 秒内完成');
-  assert.match(HTML,/@keyframes grinSnap/);
-  assert.ok(!/grinSnap 2\.|grinSnap [1-9]\./.test(HTML),'不许拖到 1 秒以上');
-  // 眼睛同步睁大一点，保留原来的发光滤镜
-  assert.match(HTML,/body\.finale-smile \.ghost-eyes\{animation:eyesWiden \.25s/,'眼睛要跟着一起睁大');
-  assert.match(HTML,/filter="url\(#ghostEyes\)" class="ghost-eyes"/,'眼睛的发光滤镜要留着');
-
-  // smile 段 ≤1.2 秒，总时长落在 5.3–5.6 秒
-  assert.match(HTML,/var smileMs = 900;/,'露牙段 0.9 秒');
-  const smileMs=Number((HTML.match(/var smileMs = (\d+);/)||[])[1]);
-  assert.ok(smileMs<=1200,'露牙段不许超过 1.2 秒，实际 '+smileMs);
-  const total=smileMs+1400+3000;
-  assert.ok(total>=5300&&total<=5600,'总时长应当落在 5.3–5.6 秒，实际 '+total);
-
-  // 声音只留一记短促低频冲击
-  assert.ok(!/longTone/.test(HTML),'长音要撤掉');
-  const finaleStart=HTML.indexOf('function finale(');
-  const finaleEnd=HTML.indexOf('function showBack(');
-  const finaleBody=HTML.slice(finaleStart,finaleEnd);
-  assert.match(finaleBody,/if\(audioOn\) thump\(\.34\);/,'露牙那一下配一记短促低频冲击');
-  assert.ok(!/setTimeout\(function\(\)\{ if\(audioOn\) thump/.test(finaleBody),'微笑段不该再有第二下重音');
-
-  // 运行时：露牙帧确实在 smile 段出现，然后立刻进撕裂
+test('结尾用三张同构肖像逐步露出笑容，连点不会跳过演出',()=>{
   const s=app({reduced:false,random:.5});
-  start(s);playAll(s);toBack(s);
+  start(s);playAll(s);
+  s.$('#revealBtn').click();s.time.advance(3000);
+  assert.deepEqual(s.$$('.found-portrait img').map(img=>img.getAttribute('src')),
+    ['assets/reveal-neutral.webp','assets/reveal-mid.webp','assets/reveal-smile.webp']);
+  assert.equal(s.$('.ghost-grin'),null);
+  assert.ok(!s.document.body.classList.contains('finale-smile'));
+  s.$('#fateBtn').click();
+  s.document.dispatch('keydown',{key:'Enter'});
+  s.$('#fateBtn').click();
   assert.equal(s.context.HTTITrace.join('>'),'smile');
-  assert.ok(s.context.document.body.classList.contains('finale-smile'));
-  assert.ok(s.$('.ghost-grin'),'露牙元素在页面上');
-  s.time.advance(400);
-  assert.equal(s.context.HTTITrace.join('>'),'smile','0.4 秒时还停在露牙帧，还没撕');
-  s.time.advance(600);
-  assert.equal(s.context.HTTITrace.join('>'),'smile>tear','0.9 秒一到立刻撕');
-  s.time.advance(5000);
+  assert.equal(s.document.body.style['--smile-duration'],'2400ms');
+  assert.ok(s.$('#fateBtn').disabled);
+  assert.ok(!s.$('#screen-back').classList.contains('active'));
+  s.time.advance(2399);
+  assert.equal(s.context.HTTITrace.join('>'),'smile');
+  s.time.advance(1);
+  assert.equal(s.context.HTTITrace.join('>'),'smile>tear');
+  s.time.advance(4400);
   assert.equal(s.context.HTTITrace.join('>'),'smile>tear>welcome>back');
 });
 
 
-test('结尾演出按 露牙 → 撕裂 → 欢迎加入我们 → 档案 的顺序走',()=>{
+test('结尾演出按 微笑 → 撕裂 → 欢迎加入我们 → 档案 的顺序走',()=>{
   const s=app({reduced:false,random:.5});
   start(s);playAll(s);toBack(s);
 
@@ -174,8 +147,8 @@ test('结尾演出按 露牙 → 撕裂 → 欢迎加入我们 → 档案 的顺
   assert.equal(s.$('#screen-back').classList.contains('active'),false);
   assert.ok(s.context.document.body.classList.contains('finale-smile'));
 
-  s.time.advance(950);
-  assert.equal(s.context.HTTITrace.join('>'),'smile>tear','露完牙就撕');
+  s.time.advance(2450);
+  assert.equal(s.context.HTTITrace.join('>'),'smile>tear','笑容完成后才进入撕裂');
   assert.ok(s.context.document.body.classList.contains('finale-tear'));
   assert.equal(s.$('#finaleLayer').classList.contains('active'),false);
 
@@ -201,8 +174,8 @@ test('减少动态下三段都在，只是换成静止帧与可预期提示',()=
   const body=s.context.document.body;
   assert.ok(body.classList.contains('finale-smile'),'静止露牙帧要在');
   assert.ok(body.classList.contains('finale-still'),'减少动态要标记 still');
-  assert.match(s.$('#finaleLayer').textContent,/接下来：她的嘴会突然裂开/,'要有可预期提示');
-  assert.match(HTML,/body\.finale-still \.ghost-grin\{opacity:1;transform:scaleY\(1\)\}/,'减少动态用静止的露牙帧，不删这一段');
+  assert.match(s.$('#finaleLayer').textContent,/静止的微笑画面/,'要有可预期提示');
+  assert.equal(s.$('.found-portrait-smile').getAttribute('src'),'assets/reveal-smile.webp');
 
   s.time.advance(950);
   assert.equal(s.context.HTTITrace.join('>'),'smile>tear');

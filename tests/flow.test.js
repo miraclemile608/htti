@@ -176,6 +176,28 @@ test('中途离开后重新打开，可以从原进度接着答',()=>{
   assert.ok(second.$('#screen-quiz').classList.contains('active'));
 });
 
+test('刷新后继续同一轮时，已显示的主突脸不会再播一次',()=>{
+  const store=memoryStorage();
+  const first=app({sessionStorage:store,reduced:false,random:0});
+  start(first);
+  for(let i=0;i<11;i++){
+    if(first.$('#qCount').textContent==='对话'){
+      first.$$('#options .option')[0].click();first.time.advance(5000);
+    }else answerCurrent(first,2);
+  }
+  assert.equal(first.$('#qCount').textContent,'11 / 32');
+  const saved=JSON.parse(store.getItem(SAVE));
+  assert.equal(saved.scareTarget,10);
+  assert.equal(saved.scareShown,true);
+  const second=app({sessionStorage:store,reduced:false,random:.99});
+  second.$('#warnContinue').click();second.time.advance(600);
+  second.$('#resumeBtn').click();
+  assert.equal(second.context.HTTIHaunt.target(),10);
+  assert.equal(second.context.HTTIHaunt.fired(),true);
+  assert.equal(second.$('#qCount').textContent,'11 / 32');
+  assert.equal(second.$('#scareLayer').className,'scare-layer');
+});
+
 test('对话段不挂「她」与序号；最后一题是 32 / 32；找到你了显示「型名-编号」',()=>{
   const s=app();start(s);
   let sawDialogue=false,lastCount='';
@@ -240,8 +262,14 @@ test('那一次突脸：第 11 题起指定，进入指定题立刻出现，暗�
     }
   }
   assert.ok(atEleven&&sawFace,'应当经过第 11 题并在第 13 题看到那一次突脸');
+  s.time.advance(160);
+  pick(s,1);
+  s.time.advance(300);
+  assert.equal(s.$('#qCount').textContent,'13 / 32','作答可以记分，换题须等突脸播完');
+  assert.match(s.$('#scareLayer').className,/face/);
   s.time.advance(700);
   assert.equal(s.$('#scareLayer').className,'scare-layer','突脸应当在 650ms 后自己消失');
+  assert.equal(s.$('#qCount').textContent,'14 / 32');
 });
 
 test('输入框已取消；字母快捷键不误触；无音频能力仍可完成并复制结果',async()=>{
