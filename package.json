@@ -1,0 +1,10 @@
+{
+  "name": "htti",
+  "version": "1.1.0",
+  "private": true,
+  "description": "HTTI 虚界投影，纯静态互动恐怖测试",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": { "node": ">=22" }
+}

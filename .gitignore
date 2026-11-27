@@ -1,0 +1,4 @@
+.tmp-htti/
+node_modules/
+test-results/
+playwright-report/
