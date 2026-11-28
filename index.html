@@ -178,7 +178,7 @@
     font-size:9.5px;letter-spacing:.16em;color:var(--blood-bright);margin-bottom:6px;
   }
   .presence-head b{font-weight:400;letter-spacing:.1em;color:#8a7d74}
-  .presence-log{display:flex;flex-direction:column;justify-content:flex-end;height:calc(1.7em * 5.4);overflow:hidden}
+  .presence-log{display:flex;flex-direction:column;justify-content:flex-end;height:auto;max-height:calc(1.7em * 5.4);overflow:hidden}
   .presence p{margin:0;opacity:0;transform:translateY(2px);transition:opacity .45s ease,transform .45s ease;word-break:break-word}
   .presence p.on{opacity:1;transform:none}
   .presence .tag{margin-right:4px;color:#8d5a4e}
@@ -1416,6 +1416,22 @@
     return (window.innerWidth || 1280) <= COMMS_TICKER_MAX;
   }
 
+  /* 宽屏日志区最多 5.4 行高：行数一多，最上面那行会被裁掉半截，
+     看上去就像两行叠在一起。这里只保留能完整显示的行，多的从最旧的删。 */
+  function trimCommsLog(){
+    var log = $('#presenceLog');
+    if(!log || !log.children) return;
+    if(commsTicker()) return;
+    var room = log.clientHeight;
+    if(!room || !isFinite(room)) return;
+    while(log.children.length > 1){
+      var total = 0;
+      for(var i = 0; i < log.children.length; i++) total += log.children[i].offsetHeight;
+      if(total <= room) break;
+      log.removeChild(log.children[0]);
+    }
+  }
+
   function revealCommsLine(p){
     if(!p) return;
     var log = p.parent;
@@ -1425,6 +1441,7 @@
       }
     }
     p.classList.add('on');
+    trimCommsLog();
   }
 
   /* 横竖屏切换/拉宽窗口时同步一次：宽屏恢复整段记录，窄屏只留最后一行 */
@@ -1436,6 +1453,7 @@
       if(!narrow || i === last) log.children[i].classList.add('on');
       else log.children[i].classList.remove('on');
     }
+    trimCommsLog();
   }
 
   function commsLine(tag, text, cls){
@@ -1461,14 +1479,16 @@
     if(!body){ done(); return; }
     if(reducedMotion() || document.body.classList.contains('soft-effects')){
       body.textContent = ' ' + text;
+      trimCommsLog();
       done();
       return;
     }
     body.textContent = ' ';
     (function step(){
-      if(i >= text.length){ done(); return; }
+      if(i >= text.length){ trimCommsLog(); done(); return; }
       body.textContent += text.charAt(i);
       i++;
+      trimCommsLog();
       // 换题节奏逼近时（还有行在排队）把速度提到 30ms
       commsTimer = setTimeout(step, commsQueue.length ? 30 : 40 + Math.random() * 20);
     })();

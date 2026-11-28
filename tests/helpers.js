@@ -23,6 +23,9 @@ function environment({reduced=false,random=.1,sessionStorage=memoryStorage(),wid
   const context={console,Math:math,Set,Promise,Float32Array,sessionStorage,setTimeout:time.setTimeout,clearTimeout:time.clearTimeout,setInterval:()=>0,clearInterval:()=>{},
     performance:{now:time.now},document:{hidden:false},matchMedia:()=>({matches:reduced}),innerWidth:width,innerHeight:900,scrollTo:()=>{},navigator:{},
     requestAnimationFrame:fn=>time.setTimeout(()=>fn(time.now()),16)};
+  context.listeners={};
+  context.addEventListener=(type,fn)=>{(context.listeners[type]??=[]).push(fn);};
+  context.dispatchEvent=(type,event={})=>{for(const fn of context.listeners[type]||[])fn.call(context,{type,target:context,...event});};
   context.window=context;context.globalThis=context;
   vm.createContext(context);
   return {context,time,random(value){randomValue=value;},run(file){vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});}};

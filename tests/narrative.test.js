@@ -71,6 +71,34 @@ test('对讲记录按答题进度逐条出现，从例行报到只剩电流',()=
   assert.match(s.$('.presence-head').textContent,/CH-07/);
 });
 
+test('宽屏日志区只留能完整放下的行，不会把最上面一行裁掉半截',()=>{
+  const s=app();
+  start(s);playAll(s);
+  s.time.advance(8000);
+  const log=s.$('#presenceLog');
+  const lines=comms(s);
+  assert.ok(lines.length>=6,'先要有足够多的通联，实际 '+lines.length);
+
+  /* 模拟真实的 5.4 行高度：每行 17px、日志区 46px，只放得下 2 行 */
+  log._clientHeight=46;
+  lines.forEach(el=>{el._offsetHeight=17;});
+  s.context.dispatchEvent('resize');
+  s.time.advance(2000);
+
+  const left=comms(s);
+  assert.equal(left.length,2,'只剩能完整显示的两行，多的从最旧的删掉；实际 '+left.length);
+  assert.equal(left[left.length-1],left[1],'最后一行必须还是最新那条');
+  assert.match(left[1].textContent,/只剩电流/,'最新那条是「只剩电流」');
+  assert.ok(left.every(el=>el.classList.contains('on')),'留下的行都要是可见状态');
+
+  assert.match(HTML,/\.presence-log\{[^}]*height:auto;max-height:calc\(1\.7em \* 5\.4\)/,
+    '日志区高度改成 auto + max-height，不再用固定高度硬裁');
+  assert.ok(!/;\s*height:calc\(1\.7em \* 5\.4\)/.test(HTML),
+    '不能再有固定 height 把首行切一半');
+  assert.match(HTML,/function trimCommsLog\(\)/,'要有裁行逻辑');
+  assert.match(HTML,/if\(commsTicker\(\)\) return;/,'ticker 模式走另一套，不在这里裁');
+});
+
 test('恐怖事件会在对讲里插一行 [noise]；低刺激与减少动态下不插也不抖',()=>{
   const loud=app({reduced:false,random:.1});
   start(loud);playAll(loud);

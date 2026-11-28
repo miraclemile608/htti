@@ -39,6 +39,9 @@ class Element {
   click(){if(!this.disabled)this.dispatch('click');}
   focus(){this.focused=true;}select(){}getContext(){return null;}
   getBoundingClientRect(){return {left:10,top:10,width:20,height:10};}
+  /* 布局尺寸桩：默认 0，测试里按需写 _clientHeight / _offsetHeight 模拟面板高度 */
+  get clientHeight(){return this._clientHeight??0;}
+  get offsetHeight(){return this._offsetHeight??0;}
 }
 function parse(html,root){
   const stack=[root],voids=new Set(['AREA','BASE','BR','COL','EMBED','HR','IMG','INPUT','LINK','META','PARAM','SOURCE','TRACK','WBR']);
