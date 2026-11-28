@@ -138,10 +138,7 @@
   body[data-stage="4"] .ghost-layer{opacity:.55;transform:translateY(-2vh) scale(1.16)}
   body[data-stage="5"] .ghost-layer{opacity:.7;transform:translateY(-4vh) scale(1.23)}
   body.front-mode .ghost-layer{opacity:.48}
-  body.found-mode .ghost-layer{
-    right:50%;bottom:-25vh;opacity:1;
-    transform:translateX(50%) translateY(-10vh) scale(1.5);
-  }
+  body.found-mode .ghost-layer,body.found-mode .eyes-field{visibility:hidden;transition:none}
   body.result-mode .ghost-layer{right:-11vw;opacity:.22;transform:translateY(0) scale(1.04)}
 
   body[data-stage="1"] .grain{opacity:.055}
@@ -202,24 +199,7 @@
     100%{transform:translateX(0)}
   }
 
-  /* ---------- 结尾演出：突然咧嘴露牙 → 撕裂 → 欢迎加入我们 ---------- */
-  .ghost-grin{opacity:0;transform-origin:200px 205px;transform:scaleY(.05)}
-  body.finale-smile .ghost-grin{animation:grinSnap .25s cubic-bezier(.16,.9,.3,1.12) both}
-  body.finale-smile .ghost-eyes{animation:eyesWiden .25s ease-out both}
-  body.finale-tear .ghost-grin{opacity:1;transform:scaleY(1)}
-  body.finale-still .ghost-grin{opacity:1;transform:scaleY(1)}
-  body.finale-still .ghost-eyes{transform:scale(1.24)}
-  body.found-mode.finale .ghost-layer{
-    transition:transform .25s ease-out,opacity .4s ease;
-    transform:translateX(50%) translateY(-11vh) scale(1.62);
-  }
-  @keyframes grinSnap{
-    0%{opacity:0;transform:scaleY(.05)}
-    50%{opacity:1;transform:scaleY(1.16)}
-    100%{opacity:1;transform:scaleY(1)}
-  }
-  @keyframes eyesWiden{0%{opacity:.6;transform:scale(1)}100%{opacity:1;transform:scale(1.34)}}
-
+  /* ---------- 结尾演出：微笑 → 撕裂 → 欢迎加入我们 ---------- */
   #finaleLayer{position:fixed;inset:0;z-index:320;pointer-events:none;display:none;overflow:hidden}
   body.finale #finaleLayer{display:block}
   #finaleLayer .tear-slices,#finaleLayer .tear-flash{display:none}
@@ -243,7 +223,6 @@
     0%{opacity:0}7%{opacity:1}13%{opacity:0}37%{opacity:1}43%{opacity:0}66%{opacity:1}72%{opacity:0}100%{opacity:0}
   }
   body.finale-tear #app{animation:tearApp .11s steps(2,end) infinite}
-  body.finale-tear .ghost-layer{animation:tearApp .13s steps(2,end) infinite}
   body.finale-tear .scanlines{opacity:.6;animation:tearScan .07s steps(2,end) infinite}
   @keyframes tearApp{
     0%{filter:drop-shadow(4px 0 rgba(255,0,50,.72)) drop-shadow(-4px 0 rgba(0,225,255,.72));transform:translateX(-2px)}
@@ -260,9 +239,11 @@
   .finale-cue{display:none;position:absolute;left:50%;bottom:12%;transform:translateX(-50%);margin:0;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:#8a7d74;background:rgba(4,4,6,.7);padding:7px 11px;border-left:1px solid rgba(163,48,48,.5)}
   body.finale-still.finale-smile .finale-cue{display:block}
   body.finale-still .tear-slices{animation:none;transition:none}
-  body.finale-still #app,body.finale-still .ghost-layer,body.finale-still .scanlines{animation:none!important}
+  body.finale-still #app,body.finale-still .scanlines,
+  body.soft-effects.finale-tear #app,body.soft-effects.finale-tear .scanlines{animation:none!important}
   body.finale-still .tear-flash{animation:none;opacity:0}
   body.tear-frame #finaleLayer .tear-flash{display:block;opacity:.94;animation:none}
+  body.soft-effects #finaleLayer .tear-slices,body.soft-effects #finaleLayer .tear-flash,body.soft-effects .finale-cue{display:none}
 
   .whisper{
     position:fixed;top:108px;right:clamp(16px,4vw,46px);z-index:60;
@@ -783,7 +764,6 @@
     body[data-stage="3"] .ghost-layer{opacity:.3}
     body[data-stage="4"] .ghost-layer{opacity:.42}
     body[data-stage="5"] .ghost-layer{opacity:.55}
-    body.found-mode .ghost-layer{width:92vw;right:50%;bottom:-44vh;opacity:.5;transform:translateX(50%) scale(1.22)}
     body.result-mode .ghost-layer{right:-30vw;opacity:.12}
     body.result-mode .eyes-field{opacity:.14}
     .eye{width:44px;height:18px}
@@ -857,16 +837,6 @@
       <ellipse cx="182" cy="150" rx="12" ry="6.2" fill="#fff" transform="rotate(-7 182 150)"/>
       <ellipse cx="218" cy="150" rx="12" ry="6.2" fill="#fff" transform="rotate(7 218 150)"/>
     </g>
-    <g class="ghost-grin">
-      <ellipse cx="200" cy="205" rx="33" ry="17.5" fill="#080406"/>
-      <rect x="169" y="193.6" width="62" height="9.4" fill="#f1e9da"/>
-      <rect x="171.5" y="207.4" width="57" height="8.6" fill="#e8decb"/>
-      <g class="ghost-grin-gaps" stroke="#1e0d12" stroke-width="1.15" stroke-linecap="butt">
-        <path d="M176 193.6 L176 203.2 M183 194.2 L183 203 M190 193.6 L190 203.4 M197 194.4 L197 202.8 M204 193.8 L204 203.2 M211 194.6 L211 203 M218 193.6 L218 203.4 M225 194.2 L225 203"/>
-        <path d="M179.5 207.4 L179.5 216 M186.5 207.9 L186.5 216 M193.5 207.4 L193.5 215.6 M200.5 208 L200.5 216 M207.5 207.4 L207.5 215.8 M214.5 208 L214.5 216 M221.5 207.4 L221.5 215.6"/>
-      </g>
-      <path d="M166 204.6 Q200 210.4 234 204.6" fill="none" stroke="#1a0b10" stroke-width="1.6" stroke-linecap="round"/>
-    </g>
   </svg>
   </div>
 </div>
@@ -886,12 +856,12 @@
   <p>你还在吗？</p>
 </div>
 
-<div class="scare-layer" id="scareLayer" aria-hidden="true"><div class="scare-face"></div></div>
+<div class="scare-layer" id="scareLayer" aria-hidden="true"><img class="scare-face" src="assets/haunt-face.webp" width="1000" height="1000" alt="" fetchpriority="high"></div>
 
 <div id="finaleLayer">
   <div class="tear-slices" aria-hidden="true"></div>
   <div class="tear-flash" aria-hidden="true"></div>
-  <p class="finale-cue">接下来：她的嘴会突然裂开、露出一排牙，然后屏幕撕裂一次，最后一行字。</p>
+  <p class="finale-cue">接下来会显示一张静止的微笑画面，然后出现黑场文字。</p>
   <div class="welcome">
     <p class="welcome-main">欢迎加入我们</p>
     <p class="welcome-sub">HTTI · CH-07 · 归档 #04</p>
@@ -1017,10 +987,15 @@
     <!-- ===== found ===== -->
     <section class="screen" id="screen-found">
       <div class="found-inner">
+        <div class="found-portrait" aria-hidden="true">
+          <img src="assets/reveal-neutral.webp" width="768" height="768" alt="" decoding="async">
+          <img class="found-portrait-mid" src="assets/reveal-mid.webp" width="768" height="768" alt="" decoding="async">
+          <img class="found-portrait-smile" src="assets/reveal-smile.webp" width="768" height="768" alt="" decoding="async">
+        </div>
         <p class="found-kicker">她找到你了 / SHE FOUND YOU</p>
         <h2 class="found-line"><span id="foundPrefix"></span><span id="foundName" class="found-name"></span><span id="foundSuffix"></span></h2>
         <p class="found-sub" id="foundSub"></p>
-        <button id="fateBtn" class="btn-fate" type="button">查看你的虚界投影 →</button>
+        <button id="fateBtn" class="btn-fate" type="button" disabled>查看你的虚界投影 →</button>
       </div>
     </section>
 
@@ -1285,8 +1260,6 @@
   var noiseCtx = null;
   var noiseImg = null;
 
-  var finalePlayed = false;
-  var finaleStage = '';
   window.HTTITrace = [];   // 调试/测试用：记录对讲与结尾演出的阶段顺序
 
   /*
@@ -1557,6 +1530,11 @@
     document.body.classList.toggle('soft-effects',!on);
   }
 
+  function resumePendingScare(){
+    var s = steps[step];
+    if(s && s.kind === 'q' && !locked && !HTTIHaunt.fired()) HTTIHaunt.schedule(s.qi);
+  }
+
   var surfaceNum = $('#surfaceNum');
   var progressFill = $('#progressFill');
 
@@ -1635,7 +1613,8 @@
       if(!deck.length || !steps.length){ store.removeItem(SAVE_KEY); return; }
       store.setItem(SAVE_KEY, JSON.stringify({
         v:1, ids:deck.map(function(q){return q.id;}),
-        answers:answers, step:step, bond:bond, stage:stage, corrupted:corrupted
+        answers:answers, step:step, bond:bond, stage:stage, corrupted:corrupted,
+        scareTarget:HTTIHaunt.target(), scareShown:HTTIHaunt.fired()
       }));
     }catch(e){}
   }
@@ -1666,7 +1645,8 @@
       if(typeof s.step !== 'number' || !Number.isInteger(s.step) || s.step < 0 || s.step >= TOTAL * 2) return null;
       return {
         deck:ids, answers:s.answers, step:s.step,
-        bond:s.bond|0, stage:s.stage|0, corrupted:!!s.corrupted
+        bond:s.bond|0, stage:s.stage|0, corrupted:!!s.corrupted,
+        scareTarget:s.scareTarget, scareShown:s.scareShown
       };
     }catch(e){ return null; }
   }
@@ -1685,7 +1665,7 @@
     var s = loadSave();
     if(!s){ toast('那一页已经不在了。'); refreshResume(); return; }
     startAudio();
-    HTTIHaunt.reset();
+    HTTIHaunt.reset(s.scareTarget,s.scareShown);
     deck = s.deck;
     buildSteps();
     answers = s.answers.slice();
@@ -1881,13 +1861,15 @@
     saveState();
 
     setTimeout(function(){
-      locked = false;
-      if(qi === CORRUPT_AT && !corrupted){
-        corrupt(function(){ step++; saveState(); renderStep(); });
-        return;
-      }
-      if(step < steps.length - 1){ step++; saveState(); renderStep(); }
-      else { finish(); }
+      HTTIHaunt.afterTarget(function(){
+        locked = false;
+        if(qi === CORRUPT_AT && !corrupted){
+          corrupt(function(){ step++; saveState(); renderStep(); });
+          return;
+        }
+        if(step < steps.length - 1){ step++; saveState(); renderStep(); }
+        else { finish(); }
+      });
     }, 280);
   }
 
@@ -2182,7 +2164,7 @@
     if(!text || !HTTIHaunt.isEnabled()) return;
     setTimeout(function(){
       var s = steps[step];
-      if(s && s.kind === 'q' && s.qi === qi && !document.hidden && !locked && $('#screen-quiz').classList.contains('active')) showWhisper(text);
+      if(s && s.kind === 'q' && s.qi === qi && !document.hidden && !locked && HTTIHaunt.isEnabled() && $('#screen-quiz').classList.contains('active')) showWhisper(text);
     }, 700);
   }
 
@@ -2193,7 +2175,7 @@
   }
 
   function showFound(){
-    if(!lastResult) return;
+    if(!lastResult || !$('#screen-front').classList.contains('active')) return;
     document.body.classList.remove('front-mode');
     document.body.classList.add('found-mode');
     dread = 1;
@@ -2213,7 +2195,9 @@
     $('#foundName').textContent = '';
     $('#foundSuffix').textContent = '';
     $('#foundSub').textContent = '';
-    $('#fateBtn').classList.remove('show');
+    var fateButton = $('#fateBtn');
+    fateButton.disabled = true;
+    fateButton.classList.remove('show');
     $('#foundName').classList.remove('name-flicker');
 
     setTimeout(function(){
@@ -2225,7 +2209,7 @@
           setTimeout(function(){
             $('#foundSuffix').textContent = '。';
             $('#foundSub').textContent = finalSub(bond);
-            setTimeout(function(){ $('#fateBtn').classList.add('show'); }, 520);
+            setTimeout(function(){ fateButton.disabled = false; fateButton.classList.add('show'); }, 520);
           }, 540);
         }, 280);
       });
@@ -2247,38 +2231,39 @@
   }
 
   function finaleTrace(name){
-    finaleStage = name;
     if(window.HTTITrace) window.HTTITrace.push(name);
   }
 
   /*
-   * 结尾演出：她的微笑 → 撕裂闪烁 → 黑场「欢迎加入我们」→ 结果档案。
-   * 默认路径强度高于随机事件（撕裂 1.4s，三次黑场快闪 + RGB 分离 + 切片错位 + 扫描线抖动）；
-   * 减少动态下不删段落，改成一帧静止微笑 + 一次静止闪帧 + 一行可预期的文字提示。
-   * 与 horror.js 的随机事件完全独立，不共用冷却。
+   * 独立的结尾演出。先等表情完成，再进入撕裂和黑场文字。
    */
   function finale(done){
     var body = document.body;
-    var reduced = reducedMotion();
-    var smileMs = 900;
+    var effectsOn = HTTIHaunt.isEnabled();
+    var reduced = reducedMotion() || !effectsOn;
+    var smileMs = reduced ? 900 : 2400;
     var tearMs = reduced ? 700 : 1400;
     var welcomeMs = reduced ? 1900 : 3000;
 
     finaleTrace('smile');
-    setStatus('她笑了');
+    setStatus(reduced ? '她在线' : '她在看你');
     setRec('她在线');
+    body.style.setProperty('--smile-duration', smileMs+'ms');
     body.classList.add('finale', 'finale-smile');
     if(reduced) body.classList.add('finale-still');
-    // 咧嘴那一下：一记短促的低频冲击，不拖长
-    if(audioOn) thump(.34);
+    setTimeout(function(){
+      if(!HTTIHaunt.isEnabled() || document.hidden) return;
+      setStatus('她笑了');
+      if(audioOn) thump(.34);
+    }, reduced ? 0 : smileMs - 400);
 
     setTimeout(function(){
       body.classList.remove('finale-smile');
       body.classList.add('finale-tear');
       finaleTrace('tear');
       setStatus('信号撕裂');
-      if(audioOn) HTTIAudio.scare('face');
-      if(reduced){
+      if(audioOn && HTTIHaunt.isEnabled() && !document.hidden) HTTIAudio.scare('face');
+      if(reduced && effectsOn){
         body.classList.add('tear-frame');
         setTimeout(function(){ body.classList.remove('tear-frame'); }, 260);
       }
@@ -2298,13 +2283,11 @@
   }
 
   function showBack(){
-    if(!lastResult) return;
-    if(!finalePlayed){
-      finalePlayed = true;
-      finale(showBackNow);
-      return;
-    }
-    showBackNow();
+    var button = $('#fateBtn');
+    if(!lastResult || button.disabled || !$('#screen-found').classList.contains('active')) return;
+    button.disabled = true;
+    button.classList.remove('show');
+    finale(showBackNow);
   }
 
   function showBackNow(){
@@ -2337,7 +2320,6 @@
     var meta = document.querySelector('meta[name="theme-color"]');
     if(meta) meta.setAttribute('content','#f7f1e6');
     stage = 0; bond = 0; corrupted = false; blackout = false; locked = false; lastResult = null; serial = '';
-    finalePlayed = false;
     if(window.HTTITrace) window.HTTITrace.length = 0;
     dread = 0; presenceStep = 0; idleLine = 0;
     clearIdle();
@@ -2409,8 +2391,13 @@
   $('#fateBtn').addEventListener('click', showBack);
   $('#soundBtn').addEventListener('click', toggleAudio);
   $('#warningAudio').addEventListener('change',function(){HTTIAudio.setEnabled(this.checked);});
-  $('#effectsBtn').addEventListener('click',function(){HTTIHaunt.setEnabled(!HTTIHaunt.isEnabled());effectsLabel();});
-  HTTIHaunt.init($('#scareLayer'),function(){var s=steps[step];return {locked:locked,blackout:blackout,total:TOTAL,quiz:$('#screen-quiz').classList.contains('active'),qi:s&&s.kind==='q'?s.qi:-1};},function(kind){HTTIAudio.scare(kind);commsNoise(kind);});
+  $('#effectsBtn').addEventListener('click',function(){
+    var on = !HTTIHaunt.isEnabled();
+    HTTIHaunt.setEnabled(on);
+    effectsLabel();
+    if(on) resumePendingScare();
+  });
+  HTTIHaunt.init($('#scareLayer'),function(){var s=steps[step];return {locked:locked,blackout:blackout,total:TOTAL,quiz:$('#screen-quiz').classList.contains('active'),qi:s&&s.kind==='q'?s.qi:-1};},function(kind){HTTIAudio.scare(kind);commsNoise(kind);},saveState);
   HTTIAudio.onChange(soundLabel);
   document.addEventListener('pointerdown',function(e){
     if(e.target.closest('#soundBtn,#warningAudio,#warnLeave'))return;
@@ -2437,8 +2424,8 @@
 
   document.addEventListener('visibilitychange', function(){
     HTTIAudio.visibility();
-    HTTIHaunt.cancel();
     if(document.hidden){
+      HTTIHaunt.cancel();
       hiddenAt = Date.now();
       if(corrupted) document.title = '别走。';
     }else{
@@ -2449,6 +2436,7 @@
         showWhisper('你回来了。');
       }
       updateTitle();
+      resumePendingScare();
     }
   });
 
