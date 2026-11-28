@@ -666,12 +666,31 @@
   .export-close:hover{border-color:var(--bone);background:#000}
   .export-close:focus-visible{outline:1px solid var(--blood-bright);outline-offset:3px}
   .export-image{
-    display:block;max-width:min(430px,calc(100vw - 56px));max-height:calc(100vh - 210px);
+    display:block;max-width:min(430px,calc(100vw - 56px));max-height:calc(100vh - 330px);
     width:auto;height:auto;border:1px solid rgba(231,222,206,.18);background:#0a0a0b;
     box-shadow:0 30px 90px rgba(0,0,0,.65);
   }
   .export-actions{display:flex;gap:9px;width:min(430px,calc(100vw - 56px))}
   .export-actions .btn{flex:1;justify-content:center;padding:14px 16px;font-size:12px}
+  .export-platforms{
+    display:none;width:min(430px,calc(100vw - 56px));grid-template-columns:repeat(3,1fr);gap:8px;
+  }
+  .export-platforms.show{display:grid}
+  .export-chip{
+    display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:52px;
+    padding:8px 10px;border:1px solid var(--line);background:rgba(255,255,255,.02);
+    color:var(--bone);font-family:var(--sans);font-size:11.5px;letter-spacing:.04em;
+    text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease;
+  }
+  .export-chip b{font-weight:600}
+  .export-chip .chip-note{
+    font-style:normal;font-family:var(--mono);font-size:9.5px;line-height:1.4;
+    color:var(--faint);letter-spacing:.02em;
+  }
+  .export-chip:hover{border-color:var(--dim);background:rgba(255,255,255,.05)}
+  .export-chip:focus-visible{outline:1px solid var(--blood-bright);outline-offset:2px}
+  .export-chip:disabled{opacity:.42;cursor:not-allowed}
+  .export-chip:disabled .chip-note{color:#c06a5e}
   .export-hint{margin:0;max-width:340px;text-align:center;font-size:10.5px;line-height:1.7;color:var(--faint)}
 
   /* ============ warning ============ */
@@ -745,7 +764,7 @@
     .presence-head{margin:0;white-space:nowrap}
     .presence-head::after{content:"›"}
     .presence-log{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .presence p{position:absolute;left:0;top:0;width:100%}
+    .presence p{position:absolute;left:0;top:0;right:0;width:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .presence p:not(.on){display:none}
     .presence-log{position:relative;height:1.4em}
     .presence-cursor{display:none}
@@ -1081,7 +1100,7 @@
       <p class="dual-note" id="dualNote">表层不是里层的反面。两个数字要分开读。</p>
 
       <div class="back-actions">
-        <button id="copyBtn" class="btn btn-primary" type="button" aria-label="预览结果图片，可保存或转发"><span>查看结果图</span><span class="arrow" aria-hidden="true">→</span></button>
+        <button id="copyBtn" class="btn btn-primary" type="button" aria-label="预览结果图片，可保存或分享"><span>查看结果图</span><span class="arrow" aria-hidden="true">→</span></button>
         <button id="restartBtn" class="btn btn-ghost" type="button">再测一次</button>
       </div>
       <p class="disclaimer">HTTI 为娱乐向概念框架，不是正式心理测量工具。</p>
@@ -1093,7 +1112,7 @@
 <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<!-- 结果图预览：全屏遮罩 + 竖版图 + 保存/转发 -->
+<!-- 结果图预览：全屏遮罩 + 竖版图 + 保存/分享（分享展开具体平台） -->
 <div class="export-layer" id="exportLayer" role="dialog" aria-modal="true" aria-labelledby="exportTitle" aria-describedby="exportHint" aria-hidden="true">
   <div class="export-dialog">
     <h2 class="sr-only" id="exportTitle">结果图预览</h2>
@@ -1101,9 +1120,17 @@
     <img class="export-image" id="exportImage" alt="">
     <div class="export-actions">
       <button id="exportSave" class="btn btn-primary" type="button"><span>保存图片</span></button>
-      <button id="exportShare" class="btn btn-ghost" type="button"><span>转发</span></button>
+      <button id="exportShare" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="exportPlatforms"><span>分享</span></button>
     </div>
-    <p class="export-hint" id="exportHint">长按图片也可以保存。分享时会把这张结果图一起带上。</p>
+    <div class="export-platforms" id="exportPlatforms" role="group" aria-label="选择分享方式">
+      <button class="export-chip" id="shareWechat" type="button"><b>微信</b><i class="chip-note">图片 + 链接</i></button>
+      <button class="export-chip" id="shareQQ" type="button"><b>QQ</b><i class="chip-note">链接 + 摘要</i></button>
+      <button class="export-chip" id="shareQzone" type="button"><b>QQ 空间</b><i class="chip-note">链接 + 摘要</i></button>
+      <button class="export-chip" id="shareBilibili" type="button"><b>哔哩哔哩</b><i class="chip-note">图片 + 链接</i></button>
+      <button class="export-chip" id="shareSystem" type="button"><b>系统分享</b><i class="chip-note">带图片</i></button>
+      <button class="export-chip" id="shareCopy" type="button"><b>复制图片</b><i class="chip-note">PNG</i></button>
+    </div>
+    <p class="export-hint" id="exportHint">长按图片也可以保存。外部平台只能拿到页面链接和文字摘要，图片请用「复制图片」或先保存。</p>
   </div>
 </div>
 <noscript><p style="padding:24px;color:#e7dece">本测试需要启用 JavaScript。</p></noscript>
@@ -1372,6 +1399,35 @@
   }
 
   var commsQueue = [], commsTyping = false, commsTimer = null;
+  var COMMS_TICKER_MAX = 1240;
+
+  /* ≤1240px 时对讲机是底部单行 ticker：所有行都绝对定位在同一个位置，
+     所以只能让最新一行带 .on，否则历史行会全部叠在一起。 */
+  function commsTicker(){
+    return (window.innerWidth || 1280) <= COMMS_TICKER_MAX;
+  }
+
+  function revealCommsLine(p){
+    if(!p) return;
+    var log = p.parent;
+    if(commsTicker() && log && log.children){
+      for(var i = 0; i < log.children.length; i++){
+        if(log.children[i] !== p) log.children[i].classList.remove('on');
+      }
+    }
+    p.classList.add('on');
+  }
+
+  /* 横竖屏切换/拉宽窗口时同步一次：宽屏恢复整段记录，窄屏只留最后一行 */
+  function syncCommsTicker(){
+    var log = $('#presenceLog');
+    if(!log || !log.children || !log.children.length) return;
+    var narrow = commsTicker(), last = log.children.length - 1;
+    for(var i = 0; i <= last; i++){
+      if(!narrow || i === last) log.children[i].classList.add('on');
+      else log.children[i].classList.remove('on');
+    }
+  }
 
   function commsLine(tag, text, cls){
     var p = document.createElement('p');
@@ -1434,7 +1490,7 @@
         var p = commsLine(item.tag, item.text, item.cls);
         var line = p;
         log.appendChild(line);
-        setTimeout(function(){ line.classList.add('on'); }, 30);
+        setTimeout(function(){ revealCommsLine(line); }, 30);
         commsQueue.push(line);
         // 最后一条「只剩电流」给读屏播报一次，面板本身仍 aria-hidden
         if(item.cls === 'lost') announce('对讲机：信号丢失，只剩电流。');
@@ -1456,7 +1512,7 @@
     p.className = 'noise';
     p.textContent = '[noise] ▓▒ ' + (kind === 'face' ? '▓▓▓' : kind === 'blackout' ? '▒▒' : '▓');
     log.appendChild(p);
-    setTimeout(function(){ p.classList.add('on'); }, 20);
+    setTimeout(function(){ revealCommsLine(p); }, 20);
     document.body.classList.add('presence-shake');
     setTimeout(function(){ document.body.classList.remove('presence-shake'); }, 520);
   }
@@ -2418,8 +2474,26 @@
     return lines;
   }
 
-  /* 画一张竖版档案卡；拿不到 2d 上下文就返回 null，由调用方退回复制文字 */
-  function drawReportCanvas(r){
+  /* 配图是本地 4×4 图集，必须先 onload 才能画进 canvas；加载失败就当作没有配图 */
+  function loadReportArt(done){
+    if(typeof Image === 'undefined'){ done(null); return; }
+    var img;
+    try{ img = new Image(); }catch(e){ done(null); return; }
+    var settled = false;
+    function finish(ok){
+      if(settled) return;
+      settled = true;
+      done(ok ? img : null);
+    }
+    img.onload = function(){ finish(true); };
+    img.onerror = function(){ finish(false); };
+    try{ img.src = 'assets/endings.webp'; }catch(e){ finish(false); }
+    if(img.complete && img.naturalWidth){ finish(true); }
+  }
+
+  /* 画一张竖版档案卡；拿不到 2d 上下文就返回 null，由调用方退回复制文字。
+     img 传了就把对应的那一格画进右上角（file:// 下可能污染画布，由调用方重画）。 */
+  function drawReportCanvas(r, img){
     if(!document.createElement) return null;
     var canvas = document.createElement('canvas');
     if(!canvas || !canvas.getContext) return null;
@@ -2478,12 +2552,37 @@
       ctx.fillText(d.tie ? HTTI.TIE_MARK + '持平' : (POLE_LABEL[d.letter] || ''), cx + cellW / 2, cy + 104);
       ctx.textAlign = 'left';
     });
-    ctx.textAlign = 'right';
-    ctx.fillStyle = REPORT_INK; ctx.font = '30px ' + FONT_SERIF;
-    ctx.fillText(r.ifaceCount + ' / 4', x1, 470);
-    ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
-    ctx.fillText('同化接口 · ' + LEVELS[r.ifaceCount], x1, 502);
+    /* 型格配图：endings.webp 是 4×4 图集，按 TYPES 的顺序取格，滤镜系数与页面上同一套 */
+    var artW = 380, artX = x1 - artW, artY = 196, artPad = 6;
+    ctx.strokeStyle = REPORT_RULE; ctx.lineWidth = 1;
+    ctx.strokeRect(artX, artY, artW, artW);
+    var artCodes = Object.keys(TYPES), artIndex = artCodes.indexOf(r.code);
+    if(img && artIndex >= 0){
+      var col = artIndex % 4, row = Math.floor(artIndex / 4);
+      var nw = img.naturalWidth || img.width || 4, nh = img.naturalHeight || img.height || 4;
+      var sw = nw / 4, sh = nh / 4;
+      var light = (.88 + (r.surface / 100) * .28 - (r.inner / 100) * .1).toFixed(3);
+      var contrast = (1 + (r.inner / 100) * .22).toFixed(3);
+      if(ctx.save) ctx.save();
+      if('filter' in ctx) ctx.filter = 'brightness(' + light + ') contrast(' + contrast + ')';
+      try{
+        ctx.drawImage(img, col * sw, row * sh, sw, sh,
+          artX + artPad, artY + artPad, artW - artPad * 2, artW - artPad * 2);
+      }catch(e){ /* 画不上就当没有配图，别让整张报告失败 */ }
+      if('filter' in ctx) ctx.filter = 'none';
+      if(ctx.restore) ctx.restore();
+    }else{
+      ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO; ctx.textAlign = 'center';
+      ctx.fillText(img ? '配图不可用' : '配图未载入', artX + artW / 2, artY + artW / 2);
+      ctx.textAlign = 'left';
+    }
+    ctx.fillStyle = REPORT_DIM; ctx.font = '13px ' + FONT_MONO; ctx.textAlign = 'center';
+    ctx.fillText('虚界投影 / PROJECTION', artX + artW / 2, 604);
     ctx.textAlign = 'left';
+
+    /* 同化接口：挪到代码格下方，右上角让给配图 */
+    ctx.fillStyle = REPORT_DIM; ctx.font = '16px ' + FONT_MONO;
+    ctx.fillText('同化接口 ' + r.ifaceCount + ' / 4 · ' + LEVELS[r.ifaceCount], x0, 574);
 
     /* 四维：0–32 分，条形，16 分中位线 */
     ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
@@ -2572,26 +2671,127 @@
     }catch(e){ return null; }
   }
 
-  function updateShareButton(){
-    var btn = $('#exportShare');
-    if(!btn) return;
-    var label = btn.querySelector('span') || btn;
+  function updateShareUi(){
+    var hasBlob = !!(exportState && exportState.blob);
+    var canCopy = !!(hasBlob && navigator.clipboard && navigator.clipboard.write &&
+      typeof ClipboardItem !== 'undefined');
     var file = exportState ? fileForShare(exportState.blob, exportState.name) : null;
-    var canCopy = !!(exportState && exportState.blob && navigator.clipboard &&
-      navigator.clipboard.write && typeof ClipboardItem !== 'undefined');
-    label.textContent = file ? '转发' : (canCopy ? '复制图片' : '转发');
+    var system = $('#shareSystem'), copy = $('#shareCopy');
+    var wx = $('#shareWechat'), bili = $('#shareBilibili');
+    function note(btn, text){
+      var el = btn ? btn.querySelector('.chip-note') : null;
+      if(el) el.textContent = text;
+    }
+    if(system){
+      system.disabled = !file;
+      note(system, file ? '带图片' : '不支持图片分享');
+      system.setAttribute('aria-label', file ? '系统分享（带图片）' : '系统分享（此浏览器不支持分享图片）');
+    }
+    if(copy){
+      copy.disabled = !canCopy;
+      note(copy, canCopy ? 'PNG 图片' : '不支持复制');
+      copy.setAttribute('aria-label', canCopy ? '复制图片（PNG）' : '复制图片（此浏览器不支持）');
+    }
+    if(wx) note(wx, canCopy ? '图片 + 链接' : '仅链接');
+    if(bili) note(bili, canCopy ? '图片 + 链接' : '仅链接');
   }
 
+  /* 分享给外部平台时只带页面链接和文字摘要：它们拿不到本地 PNG。
+     file:// 打开时链接换成已发布地址，否则发出去的会是本机路径。 */
+  function shareLink(){
+    try{
+      var href = (window.location && window.location.href) || '';
+      if(/^https?:\/\//i.test(href)) return href.split('#')[0];
+    }catch(e){}
+    return 'https://miraclemile608.github.io/htti/';
+  }
+
+  function resultTitle(){
+    var r = lastResult;
+    if(!r) return 'HTTI';
+    return 'HTTI · ' + r.type.cn + '-' + (r.serial || serial || '0000');
+  }
+
+  function resultSummary(){
+    var r = lastResult;
+    if(!r || !r.dims) return '';
+    var names = ['门', '频', '权', '痕'];
+    var dims = r.dims.map(function(d, i){
+      return names[i] + ' ' + d.sum + '/' + ((d && d.max) || 32);
+    }).join(' · ');
+    return dims + '；表层 ' + r.surface + ' / 100 · 里层 ' + r.inner + ' / 100';
+  }
+
+  function shareText(){
+    return '我的 HTTI 虚界投影：' + resultTitle() + '\n' + resultSummary() + '\n' + shareLink();
+  }
+
+  function openShareWindow(href){
+    try{
+      var w = window.open(href, '_blank', 'noopener,noreferrer');
+      if(w && w.focus) w.focus();
+    }catch(e){ toast('浏览器拦住了新窗口，请允许弹窗后重试'); }
+  }
+
+  function qqShareHref(){
+    return 'https://connect.qq.com/widget/shareqq/index.html?url=' + encodeURIComponent(shareLink()) +
+      '&title=' + encodeURIComponent(resultTitle()) +
+      '&summary=' + encodeURIComponent(resultSummary());
+  }
+
+  function qzoneShareHref(){
+    return 'https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=' + encodeURIComponent(shareLink()) +
+      '&title=' + encodeURIComponent(resultTitle()) +
+      '&summary=' + encodeURIComponent(resultSummary());
+  }
+
+  /* 图片进剪贴板：有 Blob 能力时把文字和 PNG 放进同一次写入，
+     粘到微信/QQ 输入框是图，粘到纯文本框是链接；浏览器只吃图片时退成纯图。 */
+  function copyReportImage(text, done){
+    if(!exportState || !exportState.blob || !navigator.clipboard ||
+       !navigator.clipboard.write || typeof ClipboardItem === 'undefined'){
+      done(false); return;
+    }
+    function item(withText){
+      var parts = {'image/png': exportState.blob};
+      if(withText && text && typeof Blob !== 'undefined'){
+        try{ parts['text/plain'] = new Blob([text], {type:'text/plain'}); }catch(e){}
+      }
+      try{ return new ClipboardItem(parts); }catch(e){ return null; }
+    }
+    var clip = item(true) || item(false);
+    if(!clip){ done(false); return; }
+    navigator.clipboard.write([clip]).then(function(){ done(true); }, function(){ done(false); });
+  }
+
+  function copyLinkOrWarn(msg, failMsg){
+    copyText(shareText(), function(){
+      toast(msg);
+      announce(msg);
+    }, function(){
+      toast(failMsg || '复制失败，请先保存图片');
+    });
+  }
+
+  /* file:// 下把本地图画进 canvas 会污染画布，toBlob/toDataURL 会抛 SecurityError，
+     所以两个出口都包起来，失败就交给调用方重画一张不带配图的。 */
   function canvasToHref(canvas, cb){
     if(canvas.toBlob){
-      canvas.toBlob(function(blob){
-        if(blob && window.URL && window.URL.createObjectURL) cb(window.URL.createObjectURL(blob), blob);
-        else if(canvas.toDataURL) cb(canvas.toDataURL('image/png'), null);
-        else cb(null, null);
-      }, 'image/png');
+      try{
+        canvas.toBlob(function(blob){
+          if(blob && window.URL && window.URL.createObjectURL) cb(window.URL.createObjectURL(blob), blob);
+          else{
+            try{ cb(canvas.toDataURL ? canvas.toDataURL('image/png') : null, null); }
+            catch(e){ cb(null, null); }
+          }
+        }, 'image/png');
+      }catch(e){ cb(null, null); }
       return;
     }
-    if(canvas.toDataURL){ cb(canvas.toDataURL('image/png'), null); return; }
+    if(canvas.toDataURL){
+      try{ cb(canvas.toDataURL('image/png'), null); }catch(e){ cb(null, null); }
+      return;
+    }
     cb(null, null);
   }
 
@@ -2605,28 +2805,45 @@
     });
   }
 
+  /* 出图主流程：先等图集的图加载好，再画；画布被本地图污染时退一张不带配图的，
+     连那张都出不来才回文字版。 */
   function openReport(){
     if(!lastResult) return;
     if(exportOpen()){ try{ $('#exportClose').focus(); }catch(e){} return; }
-    var canvas = drawReportCanvas(lastResult);
+    loadReportArt(function(art){
+      drawAndPreview(lastResult, art, false);
+    });
+  }
+
+  function drawAndPreview(r, art, retried){
+    var canvas = drawReportCanvas(r, art);
     if(!canvas){ reportTextFallback(); return; }
     canvasToHref(canvas, function(href, blob){
-      if(!href){ reportTextFallback(); return; }
+      if(!href){
+        /* 配图把画布污染了：重画一张没有配图的，或者直接回文字版 */
+        if(art && !retried){ drawAndPreview(r, null, true); return; }
+        reportTextFallback();
+        return;
+      }
       exportState = {
         href: href,
         blob: blob,
-        name: reportFileName(lastResult),
+        name: reportFileName(r),
         objectUrl: (blob && href.indexOf('blob:') === 0) ? href : ''
       };
       var img = $('#exportImage');
       img.setAttribute('src', href);
-      img.setAttribute('alt', 'HTTI 结果图：' + lastResult.type.cn + '-' + (lastResult.serial || serial || '0000'));
+      img.setAttribute('alt', 'HTTI 结果图：' + r.type.cn + '-' + (r.serial || serial || '0000'));
       $('#exportLayer').classList.add('show');
       $('#exportLayer').setAttribute('aria-hidden','false');
       document.body.classList.add('export-open');
-      updateShareButton();
+      $('#exportPlatforms').classList.remove('show');
+      $('#exportShare').setAttribute('aria-expanded','false');
+      updateShareUi();
       try{ $('#exportClose').focus(); }catch(e){}
-      announce('结果图已生成，可以保存图片或转发。');
+      if(retried) toast('本地打开时浏览器不允许把配图写进图里，这张图里没有形象');
+      else if(!art) toast('配图没有加载出来，这张图里没有形象');
+      announce('结果图已生成，可以保存图片或分享。');
     });
   }
 
@@ -2635,6 +2852,9 @@
     $('#exportLayer').classList.remove('show');
     $('#exportLayer').setAttribute('aria-hidden','true');
     document.body.classList.remove('export-open');
+    var row = $('#exportPlatforms'), shareBtn = $('#exportShare');
+    if(row) row.classList.remove('show');
+    if(shareBtn) shareBtn.setAttribute('aria-expanded','false');
     if(exportState && exportState.objectUrl){
       try{ if(window.URL && window.URL.revokeObjectURL) window.URL.revokeObjectURL(exportState.objectUrl); }catch(e){}
     }
@@ -2655,35 +2875,60 @@
     announce('结果图已保存：' + exportState.name);
   }
 
-  function shareReport(){
+  /* ---------- 具体平台：微信/哔哩哔哩只能复制，QQ/QQ空间走官方分享页 ---------- */
+  function shareWechat(){
+    if(!exportState) return;
+    copyReportImage(shareText(), function(ok){
+      if(ok){ toast('图片和链接已复制，去微信粘贴发送'); announce('图片和链接已复制，可以粘贴到微信。'); return; }
+      copyLinkOrWarn('已复制链接，去微信粘贴发送', '复制失败，请先保存图片');
+    });
+  }
+
+  function shareBilibili(){
+    if(!exportState) return;
+    copyReportImage(shareText(), function(ok){
+      if(ok){ toast('图片和链接已复制，去 B 站动态里粘贴'); announce('图片和链接已复制，可以粘贴到 B 站动态。'); return; }
+      copyLinkOrWarn('链接已复制，去 B 站动态里粘贴', '复制失败，请先保存图片');
+    });
+  }
+
+  function shareSystem(){
     if(!exportState) return;
     var file = fileForShare(exportState.blob, exportState.name);
-    if(file){
-      navigator.share({files:[file], title:'HTTI · ' + lastResult.type.cn,
-        text:'我的 HTTI 虚界投影：' + lastResult.type.cn + '-' + (lastResult.serial || serial || '0000')}).catch(function(err){
-        if(err && err.name === 'AbortError') return;
-        toast('分享没有完成，可以先保存图片');
-      });
-      return;
-    }
-    /* 不支持文件分享时，退到剪贴板图片 */
-    if(exportState.blob && navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined'){
-      var item = null;
-      try{ item = new ClipboardItem({'image/png': exportState.blob}); }catch(e){ item = null; }
-      if(item){
-        navigator.clipboard.write([item]).then(function(){
-          toast('图片已复制');
-          announce('结果图已复制到剪贴板，可以粘贴转发。');
-        }).catch(function(){ toast('复制失败，请先保存图片'); });
-        return;
-      }
-    }
-    toast('请先保存图片，再转发');
+    if(!file){ toast('这台浏览器不支持系统分享图片'); return; }
+    navigator.share({files:[file], title: resultTitle(), text: resultSummary()}).catch(function(err){
+      if(err && err.name === 'AbortError') return;
+      toast('系统分享没有完成，可以先保存图片');
+    });
+  }
+
+  function copyImageOnly(){
+    if(!exportState) return;
+    copyReportImage('', function(ok){
+      if(ok){ toast('图片已复制'); announce('结果图已复制到剪贴板，可以粘贴转发。'); return; }
+      toast('这台浏览器不支持复制图片，请先保存');
+    });
+  }
+
+  function togglePlatformRow(){
+    var row = $('#exportPlatforms'), btn = $('#exportShare');
+    if(!row || !btn) return;
+    var open = !row.classList.contains('show');
+    row.classList.toggle('show', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    updateShareUi();
+  }
+
+  function exportFocusables(){
+    var row = $('#exportPlatforms');
+    var items = [$('#exportClose'), $('#exportSave'), $('#exportShare')];
+    if(row && row.classList.contains('show')) items = items.concat($$('.export-chip', row));
+    return items.filter(function(el){ return el && !el.disabled; });
   }
 
   function trapExportFocus(e){
     var layer = $('#exportLayer');
-    var items = [$('#exportClose'), $('#exportSave'), $('#exportShare')].filter(function(el){ return el && !el.disabled; });
+    var items = exportFocusables();
     if(!items.length) return;
     var first = items[0], last = items[items.length - 1];
     var active = document.activeElement || null;
@@ -2773,7 +3018,7 @@
     }
   });
   if(window.addEventListener){
-    window.addEventListener('resize', function(){ eyeRects = []; });
+    window.addEventListener('resize', function(){ eyeRects = []; syncCommsTicker(); });
   }
 
   document.addEventListener('visibilitychange', function(){
@@ -2834,7 +3079,13 @@
   $('#copyBtn').addEventListener('click', openReport);
   $('#exportClose').addEventListener('click', closeReport);
   $('#exportSave').addEventListener('click', downloadReport);
-  $('#exportShare').addEventListener('click', shareReport);
+  $('#exportShare').addEventListener('click', togglePlatformRow);
+  $('#shareWechat').addEventListener('click', shareWechat);
+  $('#shareQQ').addEventListener('click', function(){ openShareWindow(qqShareHref()); });
+  $('#shareQzone').addEventListener('click', function(){ openShareWindow(qzoneShareHref()); });
+  $('#shareBilibili').addEventListener('click', shareBilibili);
+  $('#shareSystem').addEventListener('click', shareSystem);
+  $('#shareCopy').addEventListener('click', copyImageOnly);
   $('#exportLayer').addEventListener('click', function(e){
     if(e.target === $('#exportLayer')) closeReport();   /* 点遮罩空白处关闭 */
   });

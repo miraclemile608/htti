@@ -66,14 +66,21 @@ function app(options={}){
   const html=fs.readFileSync('index.html','utf8'),document=new Element('document');
   parse(html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/g,''),document);
   document.body=document.querySelector('body');document.hidden=false;document.execCommand=()=>true;
-  env.canvasCalls=[];env.downloads=[];env.blobs=[];env.objectURLs=[];env.revoked=[];env.canvases=[];
+  env.canvasCalls=[];env.downloads=[];env.blobs=[];env.objectURLs=[];env.revoked=[];env.canvases=[];env.drawImages=[];env.opened=[];
   document.createElement=tag=>{
     const el=new Element(tag);
     if(tag==='canvas'&&options.noCanvas!==true){
       const calls=[];env.canvasCalls.push(calls);env.canvases.push(el);
       const ctx=makeCtx(calls);
       el.width=0;el.height=0;el.getContext=()=>ctx;
-      el.toBlob=cb=>{const blob={type:'image/png',size:2048};env.blobs.push(blob);cb(blob);};
+      el._drew=0;
+      ctx.drawImage=(...args)=>{el._drew++;env.drawImages.push(args);};
+      el.toBlob=cb=>{
+        if(options.taintOnImage===true&&el._drew){
+          const err=new Error('Tainted canvases may not be exported.');err.name='SecurityError';throw err;
+        }
+        const blob={type:'image/png',size:2048};env.blobs.push(blob);cb(blob);
+      };
       el.toDataURL=()=>'data:image/png;base64,AAAA';
     }
     if(tag==='a'){
@@ -86,6 +93,18 @@ function app(options={}){
     return el;
   };
   env.context.document=document;env.context.navigator={clipboard:{writeText:async value=>{env.copied=value;env.context.copied=value;}}};env.context.isSecureContext=true;
+  env.context.open=(href,target,features)=>{env.opened.push({href,target,features});return {focus(){}};};
+  /* 图集加载桩：设 src 就立刻 onload（naturalWidth 4 → 每格 1px，足够断言取第几格）；
+     imageError 时走 onerror，模拟配图加载失败 */
+  env.context.Image=function(){
+    const img={complete:false,naturalWidth:0,naturalHeight:0,width:0,height:0,onload:null,onerror:null};
+    Object.defineProperty(img,'src',{get(){return img._src||'';},set(v){
+      img._src=v;img.complete=true;
+      if(options.imageError===true){if(img.onerror)img.onerror();}
+      else{img.naturalWidth=4;img.naturalHeight=4;if(img.onload)img.onload();}
+    }});
+    return img;
+  };
   env.context.URL={createObjectURL:blob=>{env.objectURLs.push(blob);return 'blob:htti-report';},revokeObjectURL:url=>{env.revoked.push(url);}};
   for(const file of ['questions.js','audio.js','horror.js'])env.run(file);
   for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())vm.runInContext(match[1],env.context);

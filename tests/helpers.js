@@ -17,11 +17,11 @@ function memoryStorage(){
     key:index=>[...map.keys()][index]??null,
     get length(){return map.size;}};
 }
-function environment({reduced=false,random=.1,sessionStorage=memoryStorage()}={}){
+function environment({reduced=false,random=.1,sessionStorage=memoryStorage(),width=1280}={}){
   const time=clock();let randomValue=random;
   const math=Object.create(Math);math.random=()=>randomValue;
   const context={console,Math:math,Set,Promise,Float32Array,sessionStorage,setTimeout:time.setTimeout,clearTimeout:time.clearTimeout,setInterval:()=>0,clearInterval:()=>{},
-    performance:{now:time.now},document:{hidden:false},matchMedia:()=>({matches:reduced}),innerWidth:1280,innerHeight:900,scrollTo:()=>{},navigator:{},
+    performance:{now:time.now},document:{hidden:false},matchMedia:()=>({matches:reduced}),innerWidth:width,innerHeight:900,scrollTo:()=>{},navigator:{},
     requestAnimationFrame:fn=>time.setTimeout(()=>fn(time.now()),16)};
   context.window=context;context.globalThis=context;
   vm.createContext(context);

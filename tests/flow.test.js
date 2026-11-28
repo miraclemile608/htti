@@ -336,6 +336,48 @@ test('结果页按钮先弹预览：1080×1600 竖版 PNG，型名/代码/四维
   assert.match(s.$('#toast').textContent,/图片已保存/);
 });
 
+test('结果图把该型那一格画进右上角：按 TYPES 顺序取 4×4 图集',async()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  await Promise.resolve();
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'预览照常打开');
+  assert.equal(s.drawImages.length,1,'应当只画一次配图');
+  const [img,sx,sy,sw,sh,dx,dy,dw,dh]=s.drawImages[0];
+  assert.ok(img,'第一个参数是图集图');
+  assert.equal(sx/sw,3,'C-D-H-F 是图集第 16 格，取最后一列');
+  assert.equal(sy/sh,3,'C-D-H-F 取最后一行');
+  assert.ok(dx>500&&dx<960,'配图落在右侧');
+  assert.ok(dw>=300,'配图给到 300px 以上');
+  assert.equal(Math.round(dw),Math.round(dh),'配图是正方形');
+  const said=s.canvasCalls[0].map(call=>call.text).join('');
+  assert.ok(said.includes('虚界投影 / PROJECTION'),'配图带图注');
+});
+
+test('file:// 画布被配图污染：重画一张没有配图的，照样预览和保存',async()=>{
+  const s=app({taintOnImage:true});start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'污染时也要出预览，不能白屏');
+  assert.equal(s.canvases.length,2,'第一张被污染，第二张不带配图');
+  assert.equal(s.canvases[1]._drew,0,'第二张不再画配图');
+  assert.match(String(s.$('#toast').textContent),/没有形象/,'要给一句轻提示');
+  s.$('#exportSave').click();
+  assert.equal(s.downloads.length,1,'无配图版本同样可以保存');
+  assert.match(s.downloads[0].name,/^HTTI-.+-编号\d{4}\.png$/);
+});
+
+test('配图加载失败：照常出图，并在图上写明配图未载入',async()=>{
+  const s=app({imageError:true});start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  await Promise.resolve();
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'配图没加载也要出图');
+  assert.equal(s.drawImages.length,0,'加载失败就不该 drawImage');
+  const said=s.canvasCalls[0].map(call=>call.text).join('');
+  assert.ok(said.includes('配图未载入'),'空位要写上「配图未载入」，不留白');
+  assert.ok(said.includes('HTTI · 虚界投影'),'页眉照旧');
+  assert.match(String(s.$('#toast').textContent),/没有形象/);
+});
+
 test('拿不到 canvas 时退回原文字复制并提示，不弹空预览也不下载',async()=>{
   const s=app({noCanvas:true});start(s);run(s,'CDHF');reveal(s);
   assert.equal(s.canvasCalls.length,0,'桩里没有 2d 上下文');
@@ -368,9 +410,18 @@ test('预览可以关：×、Esc、点遮罩空白处，关闭后焦点回到按
   s.$('#exportLayer').click();
   assert.equal(s.$('#exportLayer').classList.contains('show'),false,'点遮罩空白处关闭');
   assert.equal(s.$('#copyBtn').focused,true,'遮罩关闭后焦点回到按钮');
+
+  open();
+  s.$('#exportShare').click();
+  assert.ok(s.$('#exportPlatforms').classList.contains('show'),'平台行已展开');
+  s.document.dispatch('keydown',{key:'Escape',target:s.document});
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'平台行展开时 Esc 也能关');
+  assert.equal(s.$('#exportPlatforms').classList.contains('show'),false,'关闭时收起平台行');
+  assert.equal(s.$('#exportShare').getAttribute('aria-expanded'),'false','aria-expanded 复位');
+  assert.equal(s.$('#copyBtn').focused,true,'收起平台行关闭后焦点仍回按钮');
 });
 
-test('预览有焦点陷阱：Tab 在关闭/保存/转发之间循环，不跑回档案页',async()=>{
+test('预览有焦点陷阱：Tab 在关闭/保存/分享与平台项之间循环，不跑回档案页',async()=>{
   const s=app();start(s);run(s,'CDHF');reveal(s);
   s.$('#copyBtn').click();
   assert.equal(s.$('#exportClose').focused,true,'打开时焦点落在关闭按钮');
@@ -382,44 +433,146 @@ test('预览有焦点陷阱：Tab 在关闭/保存/转发之间循环，不跑�
   s.$('#exportClose').focus();s.document.activeElement=s.$('#exportClose');
   s.document.dispatch('keydown',{key:'Tab',shiftKey:true,target:s.document});
   assert.equal(s.$('#exportShare').focused,true,'Shift+Tab 从第一个回到最后一个');
+
+  /* 平台行展开后，可用项进 Tab 序列；置灰项跳过 */
+  s.$('#exportShare').click();
+  const chips=s.$$('.export-chip').filter(el=>!el.disabled);
+  assert.equal(chips.length,4,'微信/QQ/QQ空间/哔哩哔哩可用，系统分享与复制图片置灰被跳过');
+  const last=chips[chips.length-1];
+  last.focus();s.document.activeElement=last;
+  s.document.dispatch('keydown',{key:'Tab',target:s.document});
+  assert.equal(s.$('#exportClose').focused,true,'Tab 从最后一个可用平台项回到关闭');
 });
 
-test('转发：支持文件分享时调 Web Share；不支持时改成复制图片；都没有时提示先保存',async()=>{
-  /* a. Web Share 可用 */
+test('预览固定有「分享」：展开六个平台，能力不足置灰但不隐藏',()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  const share=s.$('#exportShare');
+  assert.ok(share,'分享按钮恒在');
+  assert.equal(share.textContent.trim(),'分享','按钮语义固定是分享');
+  assert.equal(share.disabled,false,'不依赖 Web Share，永远可点');
+  assert.equal(share.getAttribute('aria-expanded'),'false');
+  for(const id of ['shareWechat','shareQQ','shareQzone','shareBilibili','shareSystem','shareCopy']){
+    assert.ok(s.$('#'+id),id+' 恒在');
+  }
+  assert.equal(s.$('#shareWechat').disabled,false,'微信不靠浏览器分享接口');
+  assert.equal(s.$('#shareQQ').disabled,false,'QQ 走官方分享页');
+  assert.equal(s.$('#shareQzone').disabled,false,'QQ 空间走官方分享页');
+  assert.equal(s.$('#shareBilibili').disabled,false,'哔哩哔哩改用复制');
+  assert.equal(s.$('#shareSystem').disabled,true,'无 canShare 时系统分享置灰');
+  assert.match(s.$('#shareSystem').textContent,/不支持图片分享/,'置灰要写原因');
+  assert.equal(s.$('#shareCopy').disabled,true,'无 ClipboardItem 时复制图片置灰');
+  assert.match(s.$('#shareCopy').textContent,/不支持复制/,'置灰要写原因');
+  share.click();
+  assert.ok(s.$('#exportPlatforms').classList.contains('show'),'点分享展开平台行');
+  assert.equal(share.getAttribute('aria-expanded'),'true');
+  assert.equal(s.$('#exportPlatforms').getAttribute('role'),'group','平台行是分组语义');
+});
+
+test('QQ / QQ 空间：新窗口打开官方分享页，链接、标题、摘要编码正确',()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  s.$('#exportShare').click();
+
+  s.$('#shareQQ').click();
+  assert.equal(s.opened.length,1,'QQ 打开一个新窗口');
+  const qq=new URL(s.opened[0].href);
+  assert.equal(qq.origin+qq.pathname,'https://connect.qq.com/widget/shareqq/index.html');
+  assert.equal(qq.searchParams.get('url'),'https://miraclemile608.github.io/htti/','file:// 下用已发布地址');
+  assert.match(qq.searchParams.get('title'),/^HTTI · .+-\d{4}$/,'标题是 HTTI · 型名-编号');
+  assert.match(qq.searchParams.get('summary'),/门 \d+\/32 · 频 \d+\/32 · 权 \d+\/32 · 痕 \d+\/32；表层 \d+ \/ 100 · 里层 \d+ \/ 100/,'摘要是四维分数一句话');
+  assert.equal(s.opened[0].target,'_blank');
+  assert.match(String(s.opened[0].features),/noopener/);
+
+  s.$('#shareQzone').click();
+  assert.equal(s.opened.length,2,'QQ 空间打开第二个窗口');
+  const qz=new URL(s.opened[1].href);
+  assert.equal(qz.origin+qz.pathname,'https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey');
+  assert.equal(qz.searchParams.get('url'),'https://miraclemile608.github.io/htti/');
+  assert.match(qz.searchParams.get('title'),/^HTTI · .+-\d{4}$/);
+  assert.match(qz.searchParams.get('summary'),/表层 \d+ \/ 100/);
+});
+
+test('微信：能复制图片时一次写入 PNG+链接文字；ClipboardItem 不可用就退成复制链接',async()=>{
+  /* a. 有 ClipboardItem：图片与链接文字进同一次剪贴板写入 */
+  const a=app();start(a);run(a,'CDHF');reveal(a);
+  let written=null;
+  a.context.Blob=class{constructor(parts,opts){this.parts=parts;this.type=opts&&opts.type;}};
+  a.context.ClipboardItem=class{constructor(items){this.items=items;}};
+  a.context.navigator.clipboard.write=async items=>{written=items;};
+  a.$('#copyBtn').click();a.$('#exportShare').click();
+  a.$('#shareWechat').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.ok(written&&written.length===1,'写入一个剪贴板项');
+  assert.equal(written[0].items['image/png'].type,'image/png','图片是 PNG blob');
+  assert.ok(written[0].items['text/plain'],'同一次写入带上结果链接文字');
+  assert.ok(written[0].items['text/plain'].parts[0].includes('https://miraclemile608.github.io/htti/'),'文字里有页面链接');
+  assert.match(a.$('#toast').textContent,/图片和链接已复制，去微信粘贴发送/);
+
+  /* b. 没有 ClipboardItem：退化为复制链接 */
+  const b=app();start(b);run(b,'CDHF');reveal(b);
+  b.$('#copyBtn').click();b.$('#exportShare').click();
+  b.$('#shareWechat').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.match(String(b.context.copied),/https:\/\/miraclemile608\.github\.io\/htti\//,'复制的是页面链接');
+  assert.match(String(b.context.copied),/HTTI · /,'链接里带型名与编号');
+  assert.match(b.$('#toast').textContent,/已复制链接，去微信粘贴发送/);
+});
+
+test('哔哩哔哩：同样只复制图片与链接，不伪造平台接口',async()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  let written=null;
+  s.context.ClipboardItem=class{constructor(items){this.items=items;}};
+  s.context.navigator.clipboard.write=async items=>{written=items;};
+  s.$('#copyBtn').click();s.$('#exportShare').click();
+  s.$('#shareBilibili').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.ok(written&&written[0].items['image/png'],'复制的是图片');
+  assert.equal(s.opened.length,0,'不打开任何伪造的 B 站接口');
+  assert.match(s.$('#toast').textContent,/去 B 站动态里粘贴/);
+});
+
+test('系统分享：canShare 认图片才可用，调 navigator.share 带 PNG；不可用置灰不隐藏',async()=>{
   const a=app();start(a);run(a,'CDHF');reveal(a);
   let shared=null;
   a.context.File=class{constructor(parts,name,opts){this.parts=parts;this.name=name;this.type=opts&&opts.type;}};
   a.context.navigator.canShare=files=>Array.isArray(files.files)&&files.files.length===1;
   a.context.navigator.share=data=>{shared=data;return Promise.resolve();};
-  a.$('#copyBtn').click();
-  assert.ok(a.$('#exportShare').textContent.includes('转发'),'能分享时按钮叫转发');
-  a.$('#exportShare').click();
+  a.$('#copyBtn').click();a.$('#exportShare').click();
+  assert.equal(a.$('#shareSystem').disabled,false,'能分享时系统分享可用');
+  assert.match(a.$('#shareSystem').textContent,/带图片/);
+  a.$('#shareSystem').click();
   await Promise.resolve();
   assert.ok(shared,'应当调 navigator.share');
   assert.equal(shared.files.length,1,'分享带一张图片文件');
-  assert.match(shared.files[0].name,/^HTTI-.+-编号\d{4}\.png$/,'分享文件名与下载一致');
+  assert.match(shared.files[0].name,/^HTTI-.+-编号\d{4}\.png$/,'文件名与下载一致');
   assert.equal(shared.files[0].type,'image/png');
-  assert.equal(a.downloads.length,0,'分享不触发下载');
+  assert.equal(a.downloads.length,0,'系统分享不触发下载');
 
-  /* b. 没有 Web Share，退到剪贴板图片 */
   const b=app();start(b);run(b,'CDHF');reveal(b);
-  let written=null;
-  b.context.ClipboardItem=class{constructor(items){this.items=items;}};
   b.context.navigator.canShare=()=>false;
-  b.context.navigator.clipboard.write=async items=>{written=items;};
-  b.$('#copyBtn').click();
-  assert.ok(b.$('#exportShare').textContent.includes('复制图片'),'不能分享时按钮改成复制图片');
-  b.$('#exportShare').click();
-  await Promise.resolve();await Promise.resolve();
-  assert.ok(written&&written.length===1,'调用 clipboard.write 写入图片');
-  assert.equal(written[0].items['image/png'].type,'image/png','写入的是 PNG blob');
-  assert.match(b.$('#toast').textContent,/图片已复制/);
+  b.$('#copyBtn').click();b.$('#exportShare').click();
+  assert.equal(b.$('#shareSystem').disabled,true,'不能分享时置灰');
+  assert.ok(b.$('#shareSystem'),'置灰也不能从 DOM 里消失');
+  assert.match(b.$('#shareSystem').textContent,/不支持图片分享/);
+});
 
-  /* c. 两条路都没有 */
-  const c=app();start(c);run(c,'CDHF');reveal(c);
-  c.$('#copyBtn').click();
-  c.$('#exportShare').click();
-  assert.match(c.$('#toast').textContent,/请先保存图片/,'都不支持时提示先保存');
+test('复制图片：只写 PNG；不支持时按钮置灰并提示原因',async()=>{
+  const a=app();start(a);run(a,'CDHF');reveal(a);
+  let written=null;
+  a.context.ClipboardItem=class{constructor(items){this.items=items;}};
+  a.context.navigator.clipboard.write=async items=>{written=items;};
+  a.$('#copyBtn').click();a.$('#exportShare').click();
+  assert.equal(a.$('#shareCopy').disabled,false,'有 ClipboardItem 时可用');
+  a.$('#shareCopy').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.ok(written&&written[0].items['image/png'],'写入 PNG');
+  assert.equal(Object.keys(written[0].items).length,1,'只放图片，不塞文字');
+  assert.match(a.$('#toast').textContent,/图片已复制/);
+
+  const b=app();start(b);run(b,'CDHF');reveal(b);
+  b.$('#copyBtn').click();b.$('#exportShare').click();
+  assert.equal(b.$('#shareCopy').disabled,true,'没有 ClipboardItem 时置灰');
 });
 
 test('预览层在减少动态下不加入场动画，照常能保存',()=>{

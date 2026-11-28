@@ -115,6 +115,31 @@ test('通联逐字打出来，打完停一下再接下一行；最后一条给�
   assert.equal(s.$('#presence').getAttribute('aria-hidden'),'true','面板本身仍然对读屏隐藏，避免刷屏');
 });
 
+test('窄屏 ticker 只留最新一行：历史行不会再叠在同一个位置',()=>{
+  const s=app({width:900});
+  start(s);
+  for(let i=0;i<20;i++) answerCurrent(s,4);
+  playAll(s);
+  s.time.advance(9000);
+  const lines=comms(s);
+  assert.ok(lines.length>=3,'窄屏下也已经出现多条通联，实际 '+lines.length);
+  const on=lines.filter(el=>el.classList.contains('on'));
+  assert.equal(on.length,1,'≤1240px 时只能有一行带 .on，否则绝对定位会全部叠在一起');
+  assert.equal(on[0],lines[lines.length-1],'留下的应当是最新一行');
+  assert.match(HTML,/\.presence p\{position:absolute/,'窄屏确实走绝对定位的 ticker');
+  assert.match(HTML,/overflow:hidden;text-overflow:ellipsis;white-space:nowrap\}/,'ticker 里的长行要省略而不是压出面板');
+
+  const wide=app();
+  start(wide);
+  for(let i=0;i<20;i++) answerCurrent(wide,4);
+  playAll(wide);
+  wide.time.advance(9000);
+  const wideLines=comms(wide);
+  assert.ok(wideLines.length>=3);
+  assert.equal(wideLines.filter(el=>el.classList.contains('on')).length,wideLines.length,
+    '宽屏是流式多行，整段记录都要留着');
+});
+
 test('结尾用三张同构肖像逐步露出笑容，连点不会跳过演出',()=>{
   const s=app({reduced:false,random:.5});
   start(s);playAll(s);
