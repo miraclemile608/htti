@@ -35,6 +35,8 @@
     --serif:"Songti SC","STSong","Noto Serif SC","Source Han Serif SC","SimSun",serif;
     --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
     --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    /* 底部救援频道占位：宽屏是左下角面板，≤1240px 是底部通栏 ticker */
+    --presence-pad:96px;
   }
   body{
     background:
@@ -160,12 +162,15 @@
   body[data-stage="5"] .option{box-shadow:inset 0 0 36px rgba(0,0,0,.45)}
 
   .presence{
-    position:fixed;left:14px;bottom:66px;z-index:60;
-    width:min(246px,21vw);padding:11px 13px 10px;background:rgba(4,4,6,.62);
+    position:fixed;left:14px;bottom:64px;z-index:60;
+    /* 正文是居中 760px 的窄栏：面板宽度跟着两侧留白算，1240–1500px 区间自动收窄，永远不压进正文 */
+    width:clamp(150px,calc((100vw - 760px) / 2 - 40px),246px);
+    padding:11px 13px 10px;background:rgba(4,4,6,.62);
     border-left:1px solid rgba(163,48,48,.65);backdrop-filter:blur(6px);
     font-family:var(--mono);font-size:10px;line-height:1.7;color:#9a9184;
     opacity:0;visibility:hidden;transition:opacity 1.1s ease;
-    max-height:min(212px,33vh);overflow:hidden;
+    max-height:min(196px,30vh);overflow:hidden;pointer-events:none;
+    box-sizing:border-box;
   }
   .presence.show{opacity:1;visibility:visible}
   .presence-head{
@@ -405,7 +410,7 @@
   body.light-mode .dialogue-mode .q-text{color:var(--light-ink)}
 
   /* ============ quiz ============ */
-  #screen-quiz{padding-top:30px;padding-bottom:6px}
+  #screen-quiz{padding-top:30px;padding-bottom:calc(6px + var(--presence-pad))}
   .quiz-top{display:flex;flex-direction:column;gap:10px;flex:0 0 auto}
   .quiz-meta{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--dim)}
   .rec{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:9.5px;letter-spacing:.18em}
@@ -498,14 +503,14 @@
   #options.pending{opacity:0;pointer-events:none}
 
   /* ============ loading ============ */
-  #screen-loading{align-items:center;justify-content:center}
+  #screen-loading{align-items:center;justify-content:center;padding-bottom:var(--presence-pad)}
   .loading-box{font-family:var(--mono);font-size:11px;line-height:2.6;letter-spacing:.09em;color:var(--dim);min-height:130px}
   .load-line{opacity:0;animation:lineIn .55s ease forwards;animation-delay:var(--d);margin:0}
   .load-line.blood{color:var(--blood-bright)}
   .cursor{display:inline-block;width:6px;height:12px;background:var(--bone);animation:blink .9s steps(1) infinite;vertical-align:-1px;margin-left:4px}
 
   /* ============ front ============ */
-  #screen-front{padding-top:7vh;justify-content:space-between;gap:34px;position:relative;overflow:hidden}
+  #screen-front{padding-top:7vh;padding-bottom:calc(6px + var(--presence-pad));justify-content:space-between;gap:34px;position:relative;overflow:hidden}
   #screen-front::before{
     content:"SURFACE";position:absolute;right:-14px;top:47%;transform:rotate(90deg);transform-origin:right center;
     font-family:var(--mono);font-size:clamp(52px,9vw,92px);letter-spacing:.28em;
@@ -540,7 +545,7 @@
   .btn-reveal small{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--faint);text-align:right;line-height:1.7}
 
   /* ============ found ============ */
-  #screen-found{align-items:center;justify-content:center;text-align:center;padding:10vh 0;position:relative}
+  #screen-found{align-items:center;justify-content:center;text-align:center;padding:10vh 0;padding-bottom:calc(10vh + var(--presence-pad));position:relative}
   #screen-found::before{
     content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
     background:radial-gradient(ellipse at center, rgba(0,0,0,.72) 0%, rgba(0,0,0,.3) 52%, transparent 76%);
@@ -565,7 +570,7 @@
   .btn-fate:hover{background:rgba(163,48,48,.16);border-color:rgba(207,75,75,.6)}
 
   /* ============ back / fate ============ */
-  #screen-back{padding-top:34px;padding-bottom:18px}
+  #screen-back{padding-top:34px;padding-bottom:calc(18px + var(--presence-pad))}
   .back-head{flex:0 0 auto}
   .type-block{margin-top:30px}
   .code-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -756,8 +761,9 @@
 
   @media (max-width:1240px){
     /* 窄屏不再整块隐藏状态块，改成底部单行 ticker，信息不丢 */
+    :root{--presence-pad:54px}
     .presence{
-      left:18px;right:18px;bottom:8px;width:auto;max-width:none;
+      left:18px;right:18px;bottom:8px;width:auto;max-width:none;max-height:1.9em;
       padding:5px 10px;display:flex;align-items:center;gap:8px;
       background:transparent;border-left:0;backdrop-filter:none;font-size:9.5px;line-height:1.4;
     }

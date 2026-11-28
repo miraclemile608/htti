@@ -140,6 +140,32 @@ test('窄屏 ticker 只留最新一行：历史行不会再叠在同一个位置
     '宽屏是流式多行，整段记录都要留着');
 });
 
+test('救援频道只占正文之外：面板不吃点击，内容屏底部留出占位',()=>{
+  assert.match(HTML,/\.presence\{[^}]*pointer-events:none/s,'面板是 aria-hidden 装饰层，不该吃点击');
+  assert.match(HTML,/width:clamp\(150px,calc\(\(100vw - 760px\) \/ 2 - 40px\),246px\)/,
+    '面板宽度跟着两侧留白收，1240–1500px 不会压进正文');
+  assert.match(HTML,/max-height:min\(196px,30vh\);overflow:hidden/,'面板自己有高度上限，不向下溢出');
+  assert.match(HTML,/--presence-pad:96px/,'宽屏底部给面板留 96px');
+  assert.match(HTML,/@media \(max-width:1240px\)\{\s*\/\*[\s\S]*?\*\/\s*:root\{--presence-pad:54px\}/,
+    'ticker 模式底部留 54px');
+  for(const sel of ['#screen-quiz','#screen-front','#screen-found','#screen-back','#screen-loading']){
+    assert.match(HTML,new RegExp(sel.replace('#','#')+'\\{[^}]*var\\(--presence-pad\\)'),
+      sel+' 要按 --presence-pad 留出面板占位');
+  }
+  /* 正文是居中的 760px 窄栏：按 CSS 的同一套算式核一遍，面板矩形不能越过正文左边缘 */
+  for(const w of [1920,1440,1280,1241,1024,768]){
+    const contentLeft=Math.max(0,(w-760)/2);
+    if(w>1240){
+      const panelRight=14+Math.min(246,Math.max(150,(w-760)/2-40));
+      assert.ok(panelRight<=contentLeft,
+        w+'px：面板右边缘 '+panelRight+' 不该越过正文左边缘 '+contentLeft);
+    }else{
+      assert.ok(w<=1240,'≤1240px 走底部通栏 ticker');
+    }
+  }
+  assert.ok(54>=Math.round(8+5+1.9*9.5+5),'窄屏 54px 占位要盖得住 ticker 自己的高度');
+});
+
 test('结尾用三张同构肖像逐步露出笑容，连点不会跳过演出',()=>{
   const s=app({reduced:false,random:.5});
   start(s);playAll(s);
