@@ -197,6 +197,8 @@ test('结尾演出按 微笑 → 撕裂 → 欢迎加入我们 → 档案 的顺
   assert.equal(s.context.HTTITrace.join('>'),'smile','点下命运之后先露牙');
   assert.equal(s.$('#screen-back').classList.contains('active'),false);
   assert.ok(s.context.document.body.classList.contains('finale-smile'));
+  assert.match(s.$('.finale-cue').textContent,/接下来会显示一张静止的微笑画面/,'完整强度下预告窗要给出文本');
+  assert.equal(s.$('.finale-cue').getAttribute('aria-hidden'),null,'完整强度下不隐藏预告窗');
 
   s.time.advance(2450);
   assert.equal(s.context.HTTITrace.join('>'),'smile>tear','笑容完成后才进入撕裂');
@@ -225,7 +227,9 @@ test('减少动态下三段都在，只是换成静止帧与可预期提示',()=
   const body=s.context.document.body;
   assert.ok(body.classList.contains('finale-smile'),'静止露牙帧要在');
   assert.ok(body.classList.contains('finale-still'),'减少动态要标记 still');
-  assert.match(s.$('#finaleLayer').textContent,/静止的微笑画面/,'要有可预期提示');
+  assert.equal(s.$('.finale-cue').textContent,'','减少动态下预告窗不留任何文案');
+  assert.equal(s.$('.finale-cue').getAttribute('aria-hidden'),'true','减少动态下预告窗对读屏隐藏');
+  assert.ok(!/静止的微笑画面/.test(s.$('#finaleLayer').textContent),'减少动态下不该出现预告窗内容');
   assert.equal(s.$('.found-portrait-smile').getAttribute('src'),'assets/reveal-smile.webp');
 
   s.time.advance(950);
@@ -239,6 +243,29 @@ test('减少动态下三段都在，只是换成静止帧与可预期提示',()=
   s.time.advance(2200);
   assert.equal(s.context.HTTITrace.join('>'),'smile>tear>welcome>back');
   assert.equal(s.$('#screen-back').classList.contains('active'),true);
+});
+
+test('低刺激模式下结尾预告窗不渲染、不播报',()=>{
+  const s=app({reduced:false,random:.5});
+  s.$('#effectsBtn').click();                       // 用户主动关掉突发效果 → soft-effects
+  assert.equal(s.context.document.body.classList.contains('soft-effects'),true);
+  start(s);playAll(s);toBack(s);
+
+  assert.ok(s.context.document.body.classList.contains('finale-smile'),'演出照常进行（低刺激版本）');
+  const cue=s.$('.finale-cue');
+  assert.equal(cue.textContent,'','低刺激下预告窗不能留任何文本');
+  assert.equal(cue.getAttribute('aria-hidden'),'true','低刺激下预告窗对读屏隐藏');
+  assert.ok(!/静止的微笑画面/.test(s.$('#finaleLayer').textContent),'低刺激下演出层里也读不到这句');
+  assert.ok(!/最后的微笑|静止的微笑/.test(s.$('#srStatus').textContent),'低刺激下不播报预告');
+
+  /* 其他播报保持原样：黑场那句照旧 */
+  s.time.advance(950);
+  s.time.advance(900);
+  assert.match(s.$('#srStatus').textContent,/欢迎加入我们/,'黑场播报不受影响');
+
+  /* CSS 兜底：低刺激与减少动态都被 !important 挡掉，不靠淡出 */
+  assert.match(HTML,/body\.finale-still \.finale-cue,\s*\n?\s*body\.soft-effects \.finale-cue\{display:none!important\}/,'低刺激/减少动态必须硬性隐藏预告窗');
+  assert.match(HTML,/body\.finale\.finale-smile:not\(\.finale-still\):not\(\.soft-effects\) \.finale-cue\{display:block\}/,'只有完整强度才显示预告窗');
 });
 
 test('撕裂强度高于随机事件，且与 horror.js 的冷却互不相干',()=>{

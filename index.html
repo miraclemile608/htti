@@ -242,13 +242,17 @@
   .welcome-main{margin:0;font-size:clamp(21px,2.6vw,30px);font-weight:400;letter-spacing:.42em;color:#d8d0c4;text-shadow:0 0 26px rgba(163,48,48,.35)}
   .welcome-sub{margin:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.28em;color:#5f574f}
   .finale-cue{display:none;position:absolute;left:50%;bottom:12%;transform:translateX(-50%);margin:0;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:#8a7d74;background:rgba(4,4,6,.7);padding:7px 11px;border-left:1px solid rgba(163,48,48,.5)}
-  body.finale-still.finale-smile .finale-cue{display:block}
+  /* 预告窗只在完整强度下出现：低刺激（soft-effects）与减少动态（finale-still）都不显示，
+     用 !important 压过下面任何 inherited display 规则，别靠淡出或极短停留。 */
+  body.finale.finale-smile:not(.finale-still):not(.soft-effects) .finale-cue{display:block}
+  body.finale-still .finale-cue,
+  body.soft-effects .finale-cue{display:none!important}
   body.finale-still .tear-slices{animation:none;transition:none}
   body.finale-still #app,body.finale-still .scanlines,
   body.soft-effects.finale-tear #app,body.soft-effects.finale-tear .scanlines{animation:none!important}
   body.finale-still .tear-flash{animation:none;opacity:0}
   body.tear-frame #finaleLayer .tear-flash{display:block;opacity:.94;animation:none}
-  body.soft-effects #finaleLayer .tear-slices,body.soft-effects #finaleLayer .tear-flash,body.soft-effects .finale-cue{display:none}
+  body.soft-effects #finaleLayer .tear-slices,body.soft-effects #finaleLayer .tear-flash{display:none}
 
   .whisper{
     position:fixed;top:108px;right:clamp(16px,4vw,46px);z-index:60;
@@ -2340,6 +2344,8 @@
     if(window.HTTITrace) window.HTTITrace.push(name);
   }
 
+  var FINALE_CUE_TEXT = '接下来会显示一张静止的微笑画面，然后出现黑场文字。';
+
   /*
    * 独立的结尾演出。先等表情完成，再进入撕裂和黑场文字。
    */
@@ -2350,6 +2356,15 @@
     var smileMs = reduced ? 900 : 2400;
     var tearMs = reduced ? 700 : 1400;
     var welcomeMs = reduced ? 1900 : 3000;
+
+    /* 预告窗：低刺激与减少动态下整个不渲染——连文本都不留，读屏也读不到。 */
+    var cue = $('.finale-cue');
+    if(cue){
+      var showCue = !reduced && !body.classList.contains('soft-effects');
+      cue.textContent = showCue ? FINALE_CUE_TEXT : '';
+      if(showCue){ cue.removeAttribute('aria-hidden'); }
+      else{ cue.setAttribute('aria-hidden', 'true'); }
+    }
 
     finaleTrace('smile');
     setStatus(reduced ? '她在线' : '她在看你');
@@ -2559,7 +2574,7 @@
       ctx.textAlign = 'left';
     });
     /* 型格配图：endings.webp 是 4×4 图集，按 TYPES 的顺序取格，滤镜系数与页面上同一套 */
-    var artW = 380, artX = x1 - artW, artY = 196, artPad = 6;
+    var artW = 330, artX = x1 - artW, artY = 168, artPad = 6;
     ctx.strokeStyle = REPORT_RULE; ctx.lineWidth = 1;
     ctx.strokeRect(artX, artY, artW, artW);
     var artCodes = Object.keys(TYPES), artIndex = artCodes.indexOf(r.code);
@@ -2583,7 +2598,7 @@
       ctx.textAlign = 'left';
     }
     ctx.fillStyle = REPORT_DIM; ctx.font = '13px ' + FONT_MONO; ctx.textAlign = 'center';
-    ctx.fillText('虚界投影 / PROJECTION', artX + artW / 2, 604);
+    ctx.fillText('虚界投影 / PROJECTION', artX + artW / 2, artY + artW + 26);
     ctx.textAlign = 'left';
 
     /* 同化接口：挪到代码格下方，右上角让给配图 */

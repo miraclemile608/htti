@@ -347,7 +347,10 @@ test('结果图把该型那一格画进右上角：按 TYPES 顺序取 4×4 图�
   assert.equal(sx/sw,3,'C-D-H-F 是图集第 16 格，取最后一列');
   assert.equal(sy/sh,3,'C-D-H-F 取最后一行');
   assert.ok(dx>500&&dx<960,'配图落在右侧');
-  assert.ok(dw>=300,'配图给到 300px 以上');
+  assert.ok(dw>=310&&dw<=340,'配图缩到 320–340 这个量级');
+  assert.ok(dy<220,'配图整体往上收，给四维条形让位');
+  assert.ok(dy>=140,'配图不压到页眉与代码格');
+  assert.ok(dy+dw<560,'配图下沿不能碰到「同化接口」那行');
   assert.equal(Math.round(dw),Math.round(dh),'配图是正方形');
   const said=s.canvasCalls[0].map(call=>call.text).join('');
   assert.ok(said.includes('虚界投影 / PROJECTION'),'配图带图注');

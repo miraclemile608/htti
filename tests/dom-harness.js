@@ -12,6 +12,7 @@ class Element {
   get className(){return this.attrs.class||'';}set className(value){this.attrs.class=value;}
   setAttribute(k,v){this.attrs[k]=String(v);if(k==='disabled')this.disabled=true;if(k==='checked')this.checked=true;}
   getAttribute(k){return this.attrs[k]??null;}
+  removeAttribute(k){delete this.attrs[k];if(k==='disabled')this.disabled=false;if(k==='checked')this.checked=false;}
   appendChild(child){child.parent=this;this.children.push(child);return child;}
   removeChild(child){this.children=this.children.filter(x=>x!==child);child.parent=null;}
   set textContent(value){this.children=[];this._text=String(value);}get textContent(){return this._text+this.children.map(x=>x.textContent).join('');}
