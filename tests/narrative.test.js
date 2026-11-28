@@ -227,9 +227,9 @@ test('减少动态下三段都在，只是换成静止帧与可预期提示',()=
   const body=s.context.document.body;
   assert.ok(body.classList.contains('finale-smile'),'静止露牙帧要在');
   assert.ok(body.classList.contains('finale-still'),'减少动态要标记 still');
-  assert.equal(s.$('.finale-cue').textContent,'','减少动态下预告窗不留任何文案');
-  assert.equal(s.$('.finale-cue').getAttribute('aria-hidden'),'true','减少动态下预告窗对读屏隐藏');
-  assert.ok(!/静止的微笑画面/.test(s.$('#finaleLayer').textContent),'减少动态下不该出现预告窗内容');
+  assert.match(s.$('.finale-cue').textContent,/接下来会显示一张静止的微笑画面/,'减少动态下仍保留这句可预期提示');
+  assert.equal(s.$('.finale-cue').getAttribute('aria-hidden'),null,'减少动态下预告窗对读屏可读');
+  assert.match(s.$('#finaleLayer').textContent,/静止的微笑画面/,'减少动态下演出层里能读到这句');
   assert.equal(s.$('.found-portrait-smile').getAttribute('src'),'assets/reveal-smile.webp');
 
   s.time.advance(950);
@@ -263,9 +263,10 @@ test('低刺激模式下结尾预告窗不渲染、不播报',()=>{
   s.time.advance(900);
   assert.match(s.$('#srStatus').textContent,/欢迎加入我们/,'黑场播报不受影响');
 
-  /* CSS 兜底：低刺激与减少动态都被 !important 挡掉，不靠淡出 */
-  assert.match(HTML,/body\.finale-still \.finale-cue,\s*\n?\s*body\.soft-effects \.finale-cue\{display:none!important\}/,'低刺激/减少动态必须硬性隐藏预告窗');
-  assert.match(HTML,/body\.finale\.finale-smile:not\(\.finale-still\):not\(\.soft-effects\) \.finale-cue\{display:block\}/,'只有完整强度才显示预告窗');
+  /* CSS 兜底：低刺激被 !important 挡掉，减少动态不在隐藏之列；两个开关各管各的。 */
+  assert.match(HTML,/body\.soft-effects \.finale-cue\{display:none!important\}/,'低刺激必须硬性隐藏预告窗');
+  assert.match(HTML,/body\.finale\.finale-smile:not\(\.soft-effects\) \.finale-cue\{display:block\}/,'完整强度与减少动态都显示预告窗，只有低刺激不显示');
+  assert.ok(!/body\.finale-still \.finale-cue/.test(HTML),'减少动态不再被连坐隐藏');
 });
 
 test('撕裂强度高于随机事件，且与 horror.js 的冷却互不相干',()=>{

@@ -347,7 +347,9 @@ test('结果图把该型那一格画进右上角：按 TYPES 顺序取 4×4 图�
   assert.equal(sx/sw,3,'C-D-H-F 是图集第 16 格，取最后一列');
   assert.equal(sy/sh,3,'C-D-H-F 取最后一行');
   assert.ok(dx>500&&dx<960,'配图落在右侧');
-  assert.ok(dw>=310&&dw<=340,'配图缩到 320–340 这个量级');
+  assert.equal(Math.round(dw)+12,320,'配图框缩到 320×320（左右各 6px 内边距）');
+  assert.equal(Math.round(dx+dw)+6,976,'配图框右缘离外框线 40px，贴着右上角');
+  assert.equal(Math.round(dy)-6,180,'配图框顶部落在「档案编号」行下方，不压那一行');
   assert.ok(dy<220,'配图整体往上收，给四维条形让位');
   assert.ok(dy>=140,'配图不压到页眉与代码格');
   assert.ok(dy+dw<560,'配图下沿不能碰到「同化接口」那行');
