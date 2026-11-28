@@ -646,6 +646,34 @@
   }
   #toast.show{opacity:1;transform:translate(-50%,0)}
 
+  /* ============ export preview ============ */
+  .export-layer{
+    position:fixed;inset:0;z-index:600;display:none;place-items:center;padding:24px;
+    background:rgba(6,6,8,.91);backdrop-filter:blur(9px);
+  }
+  .export-layer.show{display:grid}
+  body.export-open{overflow:hidden}
+  .export-dialog{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;
+    max-height:calc(100vh - 32px);animation:exportIn .22s ease;
+  }
+  @keyframes exportIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .export-close{
+    position:absolute;top:-14px;right:-6px;z-index:2;width:34px;height:34px;border-radius:50%;
+    border:1px solid rgba(231,222,206,.32);background:rgba(8,8,10,.9);color:var(--bone);
+    font-size:18px;line-height:1;cursor:pointer;transition:border-color .2s ease,background .2s ease;
+  }
+  .export-close:hover{border-color:var(--bone);background:#000}
+  .export-close:focus-visible{outline:1px solid var(--blood-bright);outline-offset:3px}
+  .export-image{
+    display:block;max-width:min(430px,calc(100vw - 56px));max-height:calc(100vh - 210px);
+    width:auto;height:auto;border:1px solid rgba(231,222,206,.18);background:#0a0a0b;
+    box-shadow:0 30px 90px rgba(0,0,0,.65);
+  }
+  .export-actions{display:flex;gap:9px;width:min(430px,calc(100vw - 56px))}
+  .export-actions .btn{flex:1;justify-content:center;padding:14px 16px;font-size:12px}
+  .export-hint{margin:0;max-width:340px;text-align:center;font-size:10.5px;line-height:1.7;color:var(--faint)}
+
   /* ============ warning ============ */
   .warning{
     position:fixed;inset:0;z-index:400;padding:24px;display:grid;place-items:center;
@@ -784,6 +812,7 @@
     *{animation-duration:.001s!important;animation-delay:0s!important;transition-duration:.001s!important}
     .grain,.flicker-layer{display:none}
     .ghost-svg{animation:none}
+    .export-dialog{animation:none}
   }
 </style>
 <link rel="stylesheet" href="effects.css">
@@ -1052,7 +1081,7 @@
       <p class="dual-note" id="dualNote">表层不是里层的反面。两个数字要分开读。</p>
 
       <div class="back-actions">
-        <button id="copyBtn" class="btn btn-primary" type="button"><span>复制投影</span><span class="arrow" aria-hidden="true">→</span></button>
+        <button id="copyBtn" class="btn btn-primary" type="button" aria-label="预览结果图片，可保存或转发"><span>查看结果图</span><span class="arrow" aria-hidden="true">→</span></button>
         <button id="restartBtn" class="btn btn-ghost" type="button">再测一次</button>
       </div>
       <p class="disclaimer">HTTI 为娱乐向概念框架，不是正式心理测量工具。</p>
@@ -1063,6 +1092,20 @@
 
 <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
 <div id="toast" role="status" aria-live="polite"></div>
+
+<!-- 结果图预览：全屏遮罩 + 竖版图 + 保存/转发 -->
+<div class="export-layer" id="exportLayer" role="dialog" aria-modal="true" aria-labelledby="exportTitle" aria-describedby="exportHint" aria-hidden="true">
+  <div class="export-dialog">
+    <h2 class="sr-only" id="exportTitle">结果图预览</h2>
+    <button id="exportClose" class="export-close" type="button" aria-label="关闭结果图预览">×</button>
+    <img class="export-image" id="exportImage" alt="">
+    <div class="export-actions">
+      <button id="exportSave" class="btn btn-primary" type="button"><span>保存图片</span></button>
+      <button id="exportShare" class="btn btn-ghost" type="button"><span>转发</span></button>
+    </div>
+    <p class="export-hint" id="exportHint">长按图片也可以保存。分享时会把这张结果图一起带上。</p>
+  </div>
+</div>
 <noscript><p style="padding:24px;color:#e7dece">本测试需要启用 JavaScript。</p></noscript>
 
 <script src="questions.js"></script>
@@ -1242,6 +1285,7 @@
   var blackout = false;         // 只在 corrupt() 那 1.6 秒黑屏里为真；之后一直是暗场，不是黑屏
   var locked = false;
   var lastResult = null;
+  var exportState = null;       // 结果图预览里当前这张图：{href, blob, name, objectUrl}
   var toastTimer = null;
   var whisperTimer = null;
   var inputAt = 0;              // 本题渲染时刻：挡住换题瞬间的惯性点击
@@ -2339,6 +2383,316 @@
     refreshResume();
   }
 
+  /* ---------- 结果图片报告：1080×1600，纯 canvas 现场绘制，不请求任何外部资源 ---------- */
+  var REPORT_W = 1080, REPORT_H = 1600;
+  var FONT_SERIF = '"Songti SC","SimSun","Noto Serif SC",Georgia,"Times New Roman",serif';
+  var FONT_MONO = '"SF Mono","SFMono-Regular",Menlo,Consolas,"Courier New",monospace';
+  var REPORT_INK = '#e9e0d0', REPORT_DIM = '#9b9184', REPORT_RULE = '#3a342c', REPORT_TEAL = '#4b9b8c', REPORT_BLOOD = '#c2453a';
+
+  function hairline(ctx, x1, y1, x2, y2){
+    ctx.strokeStyle = REPORT_RULE; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  function spacedText(ctx, text, x, y, gap, align){
+    var widths = [], total = 0, i;
+    for(i = 0; i < text.length; i++){
+      widths[i] = ctx.measureText(text.charAt(i)).width;
+      total += widths[i] + (i < text.length - 1 ? gap : 0);
+    }
+    var cx = align === 'right' ? x - total : x;
+    for(i = 0; i < text.length; i++){ ctx.fillText(text.charAt(i), cx, y); cx += widths[i] + gap; }
+    return cx;
+  }
+
+  function wrapLines(ctx, text, maxW){
+    var lines = [], line = '', i, ch, test;
+    for(i = 0; i < text.length; i++){
+      ch = text.charAt(i);
+      if(ch === '\n'){ lines.push(line); line = ''; continue; }
+      test = line + ch;
+      if(line && ctx.measureText(test).width > maxW){ lines.push(line); line = ch; }
+      else line = test;
+    }
+    if(line) lines.push(line);
+    return lines;
+  }
+
+  /* 画一张竖版档案卡；拿不到 2d 上下文就返回 null，由调用方退回复制文字 */
+  function drawReportCanvas(r){
+    if(!document.createElement) return null;
+    var canvas = document.createElement('canvas');
+    if(!canvas || !canvas.getContext) return null;
+    var ctx = canvas.getContext('2d');
+    if(!ctx) return null;
+
+    var dpr = Math.min(2, Math.max(1, (window.devicePixelRatio || 1)));
+    canvas.width = Math.round(REPORT_W * dpr);
+    canvas.height = Math.round(REPORT_H * dpr);
+    if(canvas.style){ canvas.style.width = REPORT_W + 'px'; canvas.style.height = REPORT_H + 'px'; }
+    if(ctx.scale) ctx.scale(dpr, dpr);
+
+    var t = r.type, W = REPORT_W, H = REPORT_H, M = 64, x0 = 112, x1 = W - 112;
+    var dimMax = (r.dims[0] && r.dims[0].max) || 32;
+
+    /* 底与档案纸的细线框 */
+    ctx.fillStyle = '#0a0a0b';
+    ctx.fillRect(0, 0, W, H);
+    if(ctx.createLinearGradient){
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, 'rgba(255,255,255,.05)');
+      g.addColorStop(1, 'rgba(0,0,0,.38)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    ctx.strokeStyle = REPORT_RULE; ctx.lineWidth = 2;
+    ctx.strokeRect(M, M, W - M * 2, H - M * 2);
+    ctx.strokeStyle = 'rgba(233,224,208,.16)'; ctx.lineWidth = 1;
+    ctx.strokeRect(M + 16, M + 16, W - (M + 16) * 2, H - (M + 16) * 2);
+
+    /* 页眉 */
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    ctx.fillStyle = REPORT_INK; ctx.font = '20px ' + FONT_MONO;
+    spacedText(ctx, 'HTTI · 虚界投影', x0, 140, 4);
+    ctx.fillStyle = REPORT_DIM; ctx.font = '18px ' + FONT_MONO; ctx.textAlign = 'right';
+    ctx.fillText('档案编号 · 编号' + (r.serial || serial || '0000'), x1, 140);
+    ctx.textAlign = 'left';
+    hairline(ctx, x0, 172, x1, 172);
+
+    /* 型名与英文名 */
+    ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+    spacedText(ctx, '虚界投影档案 / VIRTUAL PROJECTION FILE', x0, 228, 3);
+    ctx.fillStyle = REPORT_INK; ctx.font = '92px ' + FONT_SERIF;
+    ctx.fillText(t.cn, x0, 332);
+    ctx.fillStyle = REPORT_DIM; ctx.font = '24px ' + FONT_MONO;
+    spacedText(ctx, t.en, x0, 380, 6);
+
+    /* 四字代码 + 接口数 */
+    var cellW = 112, cellH = 118, gap = 14, cy = 424;
+    r.dims.forEach(function(d, i){
+      var cx = x0 + i * (cellW + gap);
+      ctx.strokeStyle = d.tie ? 'rgba(194,69,58,.7)' : REPORT_RULE; ctx.lineWidth = 1;
+      ctx.strokeRect(cx, cy, cellW, cellH);
+      ctx.fillStyle = REPORT_INK; ctx.font = '58px ' + FONT_SERIF; ctx.textAlign = 'center';
+      ctx.fillText(d.letter, cx + cellW / 2, cy + 74);
+      ctx.fillStyle = d.tie ? REPORT_BLOOD : REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+      ctx.fillText(d.tie ? HTTI.TIE_MARK + '持平' : (POLE_LABEL[d.letter] || ''), cx + cellW / 2, cy + 104);
+      ctx.textAlign = 'left';
+    });
+    ctx.textAlign = 'right';
+    ctx.fillStyle = REPORT_INK; ctx.font = '30px ' + FONT_SERIF;
+    ctx.fillText(r.ifaceCount + ' / 4', x1, 470);
+    ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+    ctx.fillText('同化接口 · ' + LEVELS[r.ifaceCount], x1, 502);
+    ctx.textAlign = 'left';
+
+    /* 四维：0–32 分，条形，16 分中位线 */
+    ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+    spacedText(ctx, '四维 / DIMENSIONS · 每维 0–' + dimMax, x0, 620, 3);
+    var rows = [['门', 'GATE'], ['频', 'FREQ'], ['权', 'WILL'], ['痕', 'TRACE']];
+    var trackX = 300, trackW = 560, barY = 668, step = 104;
+    var midX = trackX + trackW * (HTTI.MID / dimMax);
+    ctx.textAlign = 'center'; ctx.fillStyle = REPORT_DIM; ctx.font = '13px ' + FONT_MONO;
+    ctx.fillText(HTTI.MID + ' 中位线', midX, barY - 30);
+    ctx.textAlign = 'left';
+    r.dims.forEach(function(d, i){
+      var y = barY + i * step;
+      ctx.fillStyle = REPORT_INK; ctx.font = '24px ' + FONT_SERIF;
+      ctx.fillText(rows[i][0], x0, y + 8);
+      ctx.fillStyle = REPORT_DIM; ctx.font = '14px ' + FONT_MONO;
+      ctx.fillText(rows[i][1], x0 + 36, y + 6);
+      ctx.strokeStyle = REPORT_RULE; ctx.lineWidth = 1;
+      ctx.strokeRect(trackX, y - 7, trackW, 14);
+      var ratio = Math.max(0, Math.min(1, d.ratio || 0));
+      ctx.fillStyle = d.tie ? 'rgba(194,69,58,.5)' : (d.letter === d.openPole ? REPORT_TEAL : '#6d6b66');
+      ctx.fillRect(trackX + 1, y - 6, (trackW - 2) * ratio, 12);
+      ctx.strokeStyle = 'rgba(233,224,208,.45)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(midX, y - 16);
+      ctx.lineTo(midX, y + 16);
+      ctx.stroke();
+      ctx.fillStyle = REPORT_INK; ctx.font = '24px ' + FONT_MONO; ctx.textAlign = 'right';
+      ctx.fillText(String(d.sum), trackX + trackW + 76, y + 8);
+      ctx.fillStyle = REPORT_DIM; ctx.font = '14px ' + FONT_MONO;
+      ctx.fillText('/ ' + dimMax, trackX + trackW + 122, y + 8);
+      ctx.textAlign = 'left';
+    });
+
+    /* 两本账 */
+    hairline(ctx, x0, 1128, x1, 1128);
+    [[x0, '表层耐受 / SURFACE', r.surface], [x0 + 400, '里层同化 / INNER', r.inner]].forEach(function(c){
+      ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+      spacedText(ctx, c[1], c[0], 1168, 3);
+      ctx.fillStyle = REPORT_INK; ctx.font = '66px ' + FONT_SERIF;
+      var label = String(c[2]);
+      ctx.fillText(label, c[0], 1240);
+      ctx.fillStyle = REPORT_DIM; ctx.font = '18px ' + FONT_MONO;
+      ctx.fillText('/ 100', c[0] + ctx.measureText(label).width + 14, 1240);
+    });
+
+    /* 判词：直接取该型现有的那句 */
+    hairline(ctx, x0, 1292, x1, 1292);
+    ctx.fillStyle = REPORT_DIM; ctx.font = '15px ' + FONT_MONO;
+    spacedText(ctx, '判词 / VERDICT', x0, 1332, 3);
+    ctx.fillStyle = REPORT_INK; ctx.font = '34px ' + FONT_SERIF;
+    var lines = wrapLines(ctx, t.tag, x1 - x0), ty = 1378;
+    lines.slice(0, 2).forEach(function(line, i){
+      ctx.fillText(line, x0, ty + i * 46);
+    });
+
+    /* 页脚 */
+    hairline(ctx, x0, 1452, x1, 1452);
+    var now = new Date();
+    var dateText = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+    ctx.fillStyle = REPORT_DIM; ctx.font = '17px ' + FONT_MONO; ctx.textAlign = 'left';
+    ctx.fillText(dateText, x0, 1492);
+    ctx.fillStyle = REPORT_INK; ctx.textAlign = 'center';
+    ctx.fillText('HTTI · 娱乐向概念框架，非心理测量', W / 2, 1492);
+    ctx.fillStyle = REPORT_DIM; ctx.textAlign = 'right';
+    ctx.fillText('作者 miracle-mile', x1, 1492);
+    ctx.textAlign = 'left';
+    if(ctx.restore) ctx.restore();
+
+    return canvas;
+  }
+
+  function reportFileName(r){
+    return 'HTTI-' + r.type.cn + '-编号' + (r.serial || serial || '0000') + '.png';
+  }
+
+  /* ---------- 结果图预览：先看图，再决定保存还是转发 ---------- */
+  function exportOpen(){
+    return $('#exportLayer').classList.contains('show');
+  }
+
+  function fileForShare(blob, name){
+    if(!blob || typeof File === 'undefined' || !navigator.canShare || !navigator.share) return null;
+    try{
+      var file = new File([blob], name, {type:'image/png'});
+      return navigator.canShare({files:[file]}) ? file : null;
+    }catch(e){ return null; }
+  }
+
+  function updateShareButton(){
+    var btn = $('#exportShare');
+    if(!btn) return;
+    var label = btn.querySelector('span') || btn;
+    var file = exportState ? fileForShare(exportState.blob, exportState.name) : null;
+    var canCopy = !!(exportState && exportState.blob && navigator.clipboard &&
+      navigator.clipboard.write && typeof ClipboardItem !== 'undefined');
+    label.textContent = file ? '转发' : (canCopy ? '复制图片' : '转发');
+  }
+
+  function canvasToHref(canvas, cb){
+    if(canvas.toBlob){
+      canvas.toBlob(function(blob){
+        if(blob && window.URL && window.URL.createObjectURL) cb(window.URL.createObjectURL(blob), blob);
+        else if(canvas.toDataURL) cb(canvas.toDataURL('image/png'), null);
+        else cb(null, null);
+      }, 'image/png');
+      return;
+    }
+    if(canvas.toDataURL){ cb(canvas.toDataURL('image/png'), null); return; }
+    cb(null, null);
+  }
+
+  /* 拿不到 2d 上下文时的兜底：复制文字版，不假装出了图 */
+  function reportTextFallback(){
+    copyText(resultText(lastResult), function(){
+      toast('这台浏览器画不出图，已复制文字版');
+      announce('结果图生成失败，已复制文字版。');
+    }, function(){
+      toast('画不出图，也复制失败，请手动截图保存');
+    });
+  }
+
+  function openReport(){
+    if(!lastResult) return;
+    if(exportOpen()){ try{ $('#exportClose').focus(); }catch(e){} return; }
+    var canvas = drawReportCanvas(lastResult);
+    if(!canvas){ reportTextFallback(); return; }
+    canvasToHref(canvas, function(href, blob){
+      if(!href){ reportTextFallback(); return; }
+      exportState = {
+        href: href,
+        blob: blob,
+        name: reportFileName(lastResult),
+        objectUrl: (blob && href.indexOf('blob:') === 0) ? href : ''
+      };
+      var img = $('#exportImage');
+      img.setAttribute('src', href);
+      img.setAttribute('alt', 'HTTI 结果图：' + lastResult.type.cn + '-' + (lastResult.serial || serial || '0000'));
+      $('#exportLayer').classList.add('show');
+      $('#exportLayer').setAttribute('aria-hidden','false');
+      document.body.classList.add('export-open');
+      updateShareButton();
+      try{ $('#exportClose').focus(); }catch(e){}
+      announce('结果图已生成，可以保存图片或转发。');
+    });
+  }
+
+  function closeReport(){
+    if(!exportOpen()) return;
+    $('#exportLayer').classList.remove('show');
+    $('#exportLayer').setAttribute('aria-hidden','true');
+    document.body.classList.remove('export-open');
+    if(exportState && exportState.objectUrl){
+      try{ if(window.URL && window.URL.revokeObjectURL) window.URL.revokeObjectURL(exportState.objectUrl); }catch(e){}
+    }
+    exportState = null;
+    try{ $('#copyBtn').focus(); }catch(e){}
+  }
+
+  function downloadReport(){
+    if(!exportState) return;
+    var a = document.createElement('a');
+    a.setAttribute('href', exportState.href);
+    a.setAttribute('download', exportState.name);
+    a.setAttribute('rel','noopener');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('图片已保存');
+    announce('结果图已保存：' + exportState.name);
+  }
+
+  function shareReport(){
+    if(!exportState) return;
+    var file = fileForShare(exportState.blob, exportState.name);
+    if(file){
+      navigator.share({files:[file], title:'HTTI · ' + lastResult.type.cn,
+        text:'我的 HTTI 虚界投影：' + lastResult.type.cn + '-' + (lastResult.serial || serial || '0000')}).catch(function(err){
+        if(err && err.name === 'AbortError') return;
+        toast('分享没有完成，可以先保存图片');
+      });
+      return;
+    }
+    /* 不支持文件分享时，退到剪贴板图片 */
+    if(exportState.blob && navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined'){
+      var item = null;
+      try{ item = new ClipboardItem({'image/png': exportState.blob}); }catch(e){ item = null; }
+      if(item){
+        navigator.clipboard.write([item]).then(function(){
+          toast('图片已复制');
+          announce('结果图已复制到剪贴板，可以粘贴转发。');
+        }).catch(function(){ toast('复制失败，请先保存图片'); });
+        return;
+      }
+    }
+    toast('请先保存图片，再转发');
+  }
+
+  function trapExportFocus(e){
+    var layer = $('#exportLayer');
+    var items = [$('#exportClose'), $('#exportSave'), $('#exportShare')].filter(function(el){ return el && !el.disabled; });
+    if(!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    var active = document.activeElement || null;
+    var inside = false, node = active;
+    while(node){ if(node === layer){ inside = true; break; } node = node.parent; }
+    if(e.shiftKey && (active === first || !inside)){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && (active === last || !inside)){ e.preventDefault(); first.focus(); }
+  }
+
   function copyText(text, done, fail){
     function fallback(){
       var ta = document.createElement('textarea');
@@ -2458,9 +2812,8 @@
     $('#introNote').textContent = '低刺激模式：已关闭随机突发效果。';
   });
 
-  $('#copyBtn').addEventListener('click', function(){
-    if(!lastResult) return;
-    var r = lastResult;
+  /* 结果文字版：只在浏览器拿不到 canvas 时兜底，不再是主路径 */
+  function resultText(r){
     var t = r.type;
     var states = [
       '门：' + (r.letters[0]==='O' ? '开' : '拒斥'),
@@ -2468,7 +2821,7 @@
       '权：' + (r.letters[2]==='Y' ? '让渡' : '守持'),
       '痕：' + (r.letters[3]==='P' ? '驻留' : '清除')
     ].join('｜');
-    var text = '找到你了，' + t.cn + '-编号' + (r.serial || serial || '0000') + '。\n' +
+    return '找到你了，' + t.cn + '-编号' + (r.serial || serial || '0000') + '。\n' +
       '你的虚界投影：' + t.cn + ' ' + t.en + '\n' +
       '代码：' + r.code + '\n' +
       '表层恐惧耐受值：' + r.surface + ' / 100\n' +
@@ -2476,7 +2829,14 @@
       states + '\n' +
       t.note + '\n' +
       '同化接口：' + r.ifaceCount + ' / 4 · ' + LEVELS[r.ifaceCount];
-    copyText(text, function(){ toast('投影已复制'); }, function(){ toast('复制失败，请手动选择文本'); });
+  }
+
+  $('#copyBtn').addEventListener('click', openReport);
+  $('#exportClose').addEventListener('click', closeReport);
+  $('#exportSave').addEventListener('click', downloadReport);
+  $('#exportShare').addEventListener('click', shareReport);
+  $('#exportLayer').addEventListener('click', function(e){
+    if(e.target === $('#exportLayer')) closeReport();   /* 点遮罩空白处关闭 */
   });
 
   document.addEventListener('keydown', function(e){
@@ -2489,6 +2849,11 @@
     }
     if(tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)){
       if(e.key==='Enter' && $('#screen-intro').classList.contains('active') && !$('#startBtn').disabled && $('#warning').classList.contains('hide')){e.preventDefault();start();}
+      return;
+    }
+    if(exportOpen()){
+      if(e.key === 'Escape'){ e.preventDefault(); closeReport(); return; }
+      if(e.key === 'Tab'){ trapExportFocus(e); return; }
       return;
     }
     var warningOpen = !$('#warning').classList.contains('hide');

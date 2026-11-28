@@ -272,7 +272,7 @@ test('那一次突脸：第 11 题起指定，进入指定题立刻出现，暗�
   assert.equal(s.$('#qCount').textContent,'14 / 32');
 });
 
-test('输入框已取消；字母快捷键不误触；无音频能力仍可完成并复制结果',async()=>{
+test('输入框已取消；字母快捷键不误触；无音频能力也能打开预览并保存结果图',async()=>{
   const s=app();
   assert.equal(s.$('#userName'),null,'开局不再要求输入名字');
   assert.equal(s.$$('.id-field').length,0,'名字输入框整块删掉');
@@ -282,8 +282,153 @@ test('输入框已取消；字母快捷键不误触；无音频能力仍可完�
   start(s);run(s,['C','D','H','F'].join(''));
   assert.equal(s.context.HTTIAudio.state().failed,true);
   reveal(s);
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'还没点按钮时没有预览');
   s.$('#copyBtn').click();
   await Promise.resolve();
-  assert.ok(s.context.navigator.clipboard);
-  assert.match(s.$('#toast').textContent,/投影已复制/);
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'无音频也能打开结果图预览');
+  assert.equal(s.downloads.length,0,'打开预览不等于下载');
+  s.$('#exportSave').click();
+  assert.equal(s.downloads.length,1,'点保存才下载一次');
+});
+
+test('结果页按钮先弹预览：1080×1600 竖版 PNG，型名/代码/四维分数/16 分中位线/两本账/判词/页脚都在图上',async()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  assert.ok(s.$('#copyBtn').textContent.includes('查看结果图'),'按钮语义是预览结果图');
+  assert.equal(s.downloads.length,0,'点按钮不再直接下载');
+  s.$('#copyBtn').click();
+  await Promise.resolve();
+
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'先弹全屏预览');
+  assert.equal(s.$('#exportLayer').getAttribute('role'),'dialog','预览是对话框语义');
+  assert.equal(s.$('#exportLayer').getAttribute('aria-modal'),'true');
+  assert.equal(s.$('#exportLayer').getAttribute('aria-hidden'),'false');
+  assert.equal(s.$('#exportImage').getAttribute('src'),'blob:htti-report','预览用的是生成的 blob URL');
+  assert.ok(s.$('#exportImage').getAttribute('alt').includes(s.$('#typeCn').textContent),'图片 alt 带型名');
+  assert.equal(s.$('#exportClose').focused,true,'打开时焦点进入弹层');
+  assert.equal(s.downloads.length,0,'打开预览不触发下载');
+  assert.equal(s.canvases.length,1,'应当只画一张图');
+  assert.equal(s.objectURLs.length,1,'blob URL 只建一次');
+  assert.equal(s.canvases[0].width,1080,'竖版 1080 宽（桩里 devicePixelRatio 为 1）');
+  assert.equal(s.canvases[0].height,1600,'竖版 1600 高');
+
+  const said=s.canvasCalls[0].map(call=>call.text).join('');
+  const typeCn=s.$('#typeCn').textContent;
+  assert.ok(said.includes('HTTI · 虚界投影'),'页眉有站名');
+  assert.match(said,/档案编号 · 编号\d{4}/,'页眉有档案编号');
+  assert.ok(said.includes(typeCn),'图上有型名：'+typeCn);
+  ['C','D','H','F'].forEach(letter=>assert.ok(said.includes(letter),'图上有代码字母 '+letter));
+  assert.ok(said.includes('门')&&said.includes('频')&&said.includes('权')&&said.includes('痕'),'四维中文名都在');
+  assert.ok(said.includes('16 中位线'),'标注 16 分中位线');
+  assert.equal((said.match(/\/ 32/g)||[]).length,4,'四维各有一个 / 32 分刻度');
+  assert.equal((said.match(/\/ 100/g)||[]).length,2,'两本账各有一个 / 100');
+  assert.ok(said.includes(String(s.$('#dualSurface').textContent)),'图上有表层账');
+  assert.ok(said.includes(String(s.$('#dualInner').textContent)),'图上有里层账');
+  assert.match(said,/\d{4}-\d{2}-\d{2}/,'页脚有日期');
+  assert.ok(said.includes('HTTI · 娱乐向概念框架，非心理测量'),'页脚有免责声明');
+  assert.ok(said.includes('作者 miracle-mile'),'页脚有作者');
+
+  s.$('#exportSave').click();
+  assert.equal(s.downloads.length,1,'保存图片触发一次下载');
+  assert.match(s.downloads[0].name,/^HTTI-.+-编号\d{4}\.png$/,'文件名形如 HTTI-闪影-编号7777.png');
+  assert.equal(s.downloads[0].href,'blob:htti-report');
+  assert.equal(s.blobs[0].type,'image/png');
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'保存后预览不自动关');
+  assert.match(s.$('#toast').textContent,/图片已保存/);
+});
+
+test('拿不到 canvas 时退回原文字复制并提示，不弹空预览也不下载',async()=>{
+  const s=app({noCanvas:true});start(s);run(s,'CDHF');reveal(s);
+  assert.equal(s.canvasCalls.length,0,'桩里没有 2d 上下文');
+  s.$('#copyBtn').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.equal(s.downloads.length,0,'没画布就不该有下载');
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'没画布不该弹空预览');
+  assert.match(String(s.context.copied),/找到你了/,'退回文字版');
+  assert.match(String(s.context.copied),/虚界投影/);
+  assert.match(s.$('#toast').textContent,/已复制文字版/);
+});
+
+test('预览可以关：×、Esc、点遮罩空白处，关闭后焦点回到按钮',async()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  function open(){
+    s.$('#copyBtn').click();
+    assert.ok(s.$('#exportLayer').classList.contains('show'),'预览已打开');
+  }
+  open();
+  s.$('#exportClose').click();
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'× 关闭');
+  assert.equal(s.$('#copyBtn').focused,true,'关闭后焦点回到按钮');
+
+  open();
+  s.document.dispatch('keydown',{key:'Escape',target:s.document});
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'Esc 关闭');
+  assert.equal(s.$('#copyBtn').focused,true,'Esc 关闭后焦点回到按钮');
+
+  open();
+  s.$('#exportLayer').click();
+  assert.equal(s.$('#exportLayer').classList.contains('show'),false,'点遮罩空白处关闭');
+  assert.equal(s.$('#copyBtn').focused,true,'遮罩关闭后焦点回到按钮');
+});
+
+test('预览有焦点陷阱：Tab 在关闭/保存/转发之间循环，不跑回档案页',async()=>{
+  const s=app();start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  assert.equal(s.$('#exportClose').focused,true,'打开时焦点落在关闭按钮');
+
+  s.$('#exportShare').focus();s.document.activeElement=s.$('#exportShare');
+  s.document.dispatch('keydown',{key:'Tab',target:s.document});
+  assert.equal(s.$('#exportClose').focused,true,'Tab 从最后一个回到第一个');
+
+  s.$('#exportClose').focus();s.document.activeElement=s.$('#exportClose');
+  s.document.dispatch('keydown',{key:'Tab',shiftKey:true,target:s.document});
+  assert.equal(s.$('#exportShare').focused,true,'Shift+Tab 从第一个回到最后一个');
+});
+
+test('转发：支持文件分享时调 Web Share；不支持时改成复制图片；都没有时提示先保存',async()=>{
+  /* a. Web Share 可用 */
+  const a=app();start(a);run(a,'CDHF');reveal(a);
+  let shared=null;
+  a.context.File=class{constructor(parts,name,opts){this.parts=parts;this.name=name;this.type=opts&&opts.type;}};
+  a.context.navigator.canShare=files=>Array.isArray(files.files)&&files.files.length===1;
+  a.context.navigator.share=data=>{shared=data;return Promise.resolve();};
+  a.$('#copyBtn').click();
+  assert.ok(a.$('#exportShare').textContent.includes('转发'),'能分享时按钮叫转发');
+  a.$('#exportShare').click();
+  await Promise.resolve();
+  assert.ok(shared,'应当调 navigator.share');
+  assert.equal(shared.files.length,1,'分享带一张图片文件');
+  assert.match(shared.files[0].name,/^HTTI-.+-编号\d{4}\.png$/,'分享文件名与下载一致');
+  assert.equal(shared.files[0].type,'image/png');
+  assert.equal(a.downloads.length,0,'分享不触发下载');
+
+  /* b. 没有 Web Share，退到剪贴板图片 */
+  const b=app();start(b);run(b,'CDHF');reveal(b);
+  let written=null;
+  b.context.ClipboardItem=class{constructor(items){this.items=items;}};
+  b.context.navigator.canShare=()=>false;
+  b.context.navigator.clipboard.write=async items=>{written=items;};
+  b.$('#copyBtn').click();
+  assert.ok(b.$('#exportShare').textContent.includes('复制图片'),'不能分享时按钮改成复制图片');
+  b.$('#exportShare').click();
+  await Promise.resolve();await Promise.resolve();
+  assert.ok(written&&written.length===1,'调用 clipboard.write 写入图片');
+  assert.equal(written[0].items['image/png'].type,'image/png','写入的是 PNG blob');
+  assert.match(b.$('#toast').textContent,/图片已复制/);
+
+  /* c. 两条路都没有 */
+  const c=app();start(c);run(c,'CDHF');reveal(c);
+  c.$('#copyBtn').click();
+  c.$('#exportShare').click();
+  assert.match(c.$('#toast').textContent,/请先保存图片/,'都不支持时提示先保存');
+});
+
+test('预览层在减少动态下不加入场动画，照常能保存',()=>{
+  const html=fs.readFileSync('index.html','utf8');
+  assert.match(html,/\.export-layer\{[^}]*position:fixed/,'预览层是全屏遮罩');
+  assert.match(html,/@media \(prefers-reduced-motion:reduce\)\{[\s\S]*?\.export-dialog\{animation:none\}/,'减少动态下不加过渡');
+  const s=app({reduced:true});start(s);run(s,'CDHF');reveal(s);
+  s.$('#copyBtn').click();
+  assert.ok(s.$('#exportLayer').classList.contains('show'),'减少动态下照样弹出');
+  s.$('#exportSave').click();
+  assert.equal(s.downloads.length,1);
 });

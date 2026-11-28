@@ -51,12 +51,42 @@ function parse(html,root){
     }else stack.at(-1)._text+=token;
   }
 }
+function makeCtx(calls){
+  const grad={addColorStop(){}};
+  const ctx={};
+  for(const name of ['fillRect','strokeRect','clearRect','beginPath','closePath','moveTo','lineTo','rect','arc','fill','stroke','save','restore','scale','translate','rotate','setLineDash','clip'])ctx[name]=()=>{};
+  ctx.fillText=(text,x,y)=>{calls.push({text:String(text),x,y});};
+  ctx.measureText=text=>({width:String(text).length*9});
+  ctx.createLinearGradient=()=>grad;
+  ctx.font='';ctx.fillStyle='';ctx.strokeStyle='';ctx.lineWidth=1;ctx.globalAlpha=1;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.lineCap='butt';
+  return ctx;
+}
 function app(options={}){
   const env=environment({reduced:true,...options});
   const html=fs.readFileSync('index.html','utf8'),document=new Element('document');
   parse(html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/g,''),document);
-  document.body=document.querySelector('body');document.hidden=false;document.createElement=tag=>new Element(tag);document.execCommand=()=>true;
-  env.context.document=document;env.context.navigator={clipboard:{writeText:async value=>{env.copied=value;}}};env.context.isSecureContext=true;
+  document.body=document.querySelector('body');document.hidden=false;document.execCommand=()=>true;
+  env.canvasCalls=[];env.downloads=[];env.blobs=[];env.objectURLs=[];env.revoked=[];env.canvases=[];
+  document.createElement=tag=>{
+    const el=new Element(tag);
+    if(tag==='canvas'&&options.noCanvas!==true){
+      const calls=[];env.canvasCalls.push(calls);env.canvases.push(el);
+      const ctx=makeCtx(calls);
+      el.width=0;el.height=0;el.getContext=()=>ctx;
+      el.toBlob=cb=>{const blob={type:'image/png',size:2048};env.blobs.push(blob);cb(blob);};
+      el.toDataURL=()=>'data:image/png;base64,AAAA';
+    }
+    if(tag==='a'){
+      el.click=function(){
+        if(this.disabled)return;
+        env.downloads.push({name:this.getAttribute('download'),href:this.getAttribute('href')});
+        this.dispatch('click');
+      };
+    }
+    return el;
+  };
+  env.context.document=document;env.context.navigator={clipboard:{writeText:async value=>{env.copied=value;env.context.copied=value;}}};env.context.isSecureContext=true;
+  env.context.URL={createObjectURL:blob=>{env.objectURLs.push(blob);return 'blob:htti-report';},revokeObjectURL:url=>{env.revoked.push(url);}};
   for(const file of ['questions.js','audio.js','horror.js'])env.run(file);
   for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())vm.runInContext(match[1],env.context);
   return {...env,document,$:selector=>document.querySelector(selector),$$:selector=>document.querySelectorAll(selector)};
